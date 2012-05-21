@@ -1,0 +1,14 @@
+*.rej
+*.orig
+*.a
+*.o
+*.d
+*~
+*.swp
+*.patch
+mboot*
+cscope.*
+tags
+ctags
+etags
+.gdb*

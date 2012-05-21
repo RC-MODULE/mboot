@@ -1,0 +1,13 @@
+#!/bin/sh
+RC=`mktemp`
+cp ~/.bashrc $RC
+cat >>$RC <<EOF
+export ARCH="arm"
+export CROSS_COMPILE="arm-module4-linux-gnueabi-"
+export GDB="/opt/codesourcery-200x/bin/arm-none-linux-gnueabi-gdb"
+export PS1='\[\033[01;32m\]\u@\h\[\033[01;34m\] \w \[\033[01;31m\]uenv\[\033[01;34m\] \$\[\033[00m\] '
+EOF
+
+bash --rcfile $RC
+
+rm $RC >/dev/null 2>&1

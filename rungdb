@@ -1,0 +1,96 @@
+#!/bin/sh
+
+die() { echo $@ >&2 ; exit 1; }
+
+if test -z "${CROSS_COMPILE}" ; then
+	die "CROSS_COMPILE is not set. Modify uenv.example and run it first"
+fi
+
+if test -z "$GDB" ; then
+	GDB=${CROSS_COMPILE}gdb
+fi
+ICEIP=
+UPLOAD=upload
+PRG=mboot-uemd
+
+while test -n "$1" ; do
+	case $1 in
+		-i) ICEIP="$2"; shift ;;
+		-g) GDB="$2"; shift ;;
+		-4) UPLOAD=upload4K; shift ;;
+		-h|--help) die "usage: `basename $0` [-i IP] [-g GDB] [-4] [PROG]" ;;
+		*) PRG=$1 ;;
+	esac
+	shift
+done
+
+test -x `which $GDB` || 
+	die "GDB is not executable ($GDB)"
+
+if test -z "$ICEIP" ; then
+	echo "Select ICEIP"
+	select i in 10.7.9.19 10.7.9.42 other; do
+		case $i in
+			other) echo -n "Enter IP : " ; read ICEIP ;;
+			*) ICEIP=$i ;;
+		esac
+		break;
+	done
+fi
+
+echo ICEIP is $ICEIP
+echo GDB is $GDB
+
+test -f $PRG || die "File '$PRG' not found"
+test -f $PRG.bin || die "File '$PRG.bin' not found"
+echo PRG is $PRG
+
+PRGSIZE=`ls -l $PRG.bin | awk '{print $5}' | xargs printf '0x%X'`
+echo PRGSIZE is $PRGSIZE
+
+BASE="0x00100010"
+echo BASE is $BASE
+
+echo "Removing *dump files"
+rm *dump
+
+cat > .gdb-script <<EOF
+    define con
+		target remote $ICEIP:4000
+    end
+
+    define upload
+		restore $PRG.bin binary $BASE
+    end
+
+    define upload4K
+		restore $PRG.bin binary $BASE 0 4096
+    end
+
+	define goto
+		set \$pc = $BASE
+	end
+
+	define upload_image
+		set *0x40000000 = 0xFFFFFFFF
+		set *0x40000004 = 0xFFFFFFFF
+		set *0x40000008 = 0xFFFFFFFF
+		set *0x4000000c = 0xFFFFFFFF
+		set *0x40000020 = 0xFFFFFFFF
+		set *0x40000024 = 0xFFFFFFFF
+		set *0x40000028 = 0xFFFFFFFF
+		set *0x4000002c = 0xFFFFFFFF
+		restore $PRG.bin binary 0x40000010
+	end
+
+	define dump_image
+		append binary memory $PRG.bin.dump 0x40040010 (0x40040010 + $PRGSIZE)
+	end
+
+	con
+	$UPLOAD
+	goto
+EOF
+
+$GDB -x .gdb-script $PRG
+

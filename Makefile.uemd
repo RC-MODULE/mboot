@@ -1,0 +1,36 @@
+
+BOARD_NAME = uemd
+
+BOARD_CONFIG = ./board/uemd/config.h
+
+BOARD_LDSCRIPT = ./board/uemd/boot.lds
+
+BOARD_TEXT_BASE = 0x00100010
+
+BOARD_CPPFLAGS = \
+	$(COMMON_CPPFLAGS) \
+	$(ARCH_CPPFLAGS) \
+	$(CPU_CPPFLAGS)
+
+BOARD_CFLAGS = \
+	$(COMMON_CFLAGS) \
+	$(ARCH_CFLAGS) \
+	$(CPU_CFLAGS) \
+	-msoft-float \
+	-mabi=aapcs-linux \
+	-fno-stack-protector
+
+BOARD_OBJS = \
+	board/uemd/uemd.o \
+	board/uemd/uemd_ddr.o \
+	board/uemd/uemd_console.o \
+	board/uemd/uemd_early.o \
+	board/uemd/start.o \
+	board/uemd/timer.o \
+	$(ARCH_OBJS) \
+	$(CPU_OBJS)
+
+include arch/arm/Makefile
+include arch/arm/cpu/arm1176/Makefile
+include rules.mk
+

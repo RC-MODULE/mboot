@@ -1,0 +1,1 @@
+COBJS-$(CONFIG_TWL4030_USB) += twl4030.o

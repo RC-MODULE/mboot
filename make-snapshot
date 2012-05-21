@@ -1,0 +1,41 @@
+#!/bin/sh
+
+die() { echo $@ >&2 ; exit 1; }
+
+LV=`sh ./tools/setlocalversion`
+BR=`git branch | grep \* | awk '{print $2}'`
+PRG=$1
+if test -z "$PRG" ; then PRG=mboot-uemd ; fi
+
+test -z "$LV" && die "Unable to determine version"
+test -z "$BR" && die "Unable to determine branch name"
+
+if echo $LV | grep -q dirty ; then
+	git status | head
+	echo -n "Sure to snapshot dirty state [y/n]? "
+	read ans
+	test "$ans" = "y" || die "Commit first."
+fi
+
+WDIR=`mktemp -d`
+ADIR="$WDIR/mboot-$BR$LV"
+GDIR="$HOME/proj/mboot-bin"
+if ! test -d $GDIR ; then (
+	echo "Creating $GDIR"
+	mkdir $GDIR &&
+	cd $GDIR &&
+	git init
+)
+fi
+mkdir "$ADIR" || die "Unable to mkdir $ADIR"
+cp $PRG $ADIR/ &&
+cp $PRG.bin $ADIR/ &&
+cp rungdb $ADIR/ &&
+{ cd $WDIR && tar -zcvpf `basename $ADIR`.tar.gz `basename $ADIR` ; } &&
+cp $ADIR.tar.gz $GDIR && {
+	cd $GDIR &&
+	git add `basename $ADIR`.tar.gz
+	git commit -m "`basename $ADIR`.tar.gz"
+	git push public
+}
+

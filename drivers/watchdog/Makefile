@@ -1,0 +1,1 @@
+COBJS-$(CONFIG_AT91SAM9_WATCHDOG) += at91sam9_wdt.o

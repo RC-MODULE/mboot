@@ -364,6 +364,9 @@ typedef enum { BOOTP, RARP, ARP, TFTP, DHCP, PING, DNS, NFS, CDP, NETCONS, SNTP 
 /* from net/net.c */
 extern char	BootFile[128];			/* Boot File name		*/
 
+extern int (*TftpCallback)(uint32_t off, u8* buf, size_t len, void* ctx);
+extern void *TftpCtx;
+
 #if defined(CONFIG_CMD_DNS)
 extern char *NetDNSResolve;		/* The host to resolve  */
 extern char *NetDNSenvvar;		/* the env var to put the ip into */

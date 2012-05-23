@@ -45,6 +45,10 @@ static int TftpTimeoutCountMax = TIMEOUT_COUNT;
 ulong TftpRRQTimeoutMSecs = TIMEOUT;
 int TftpRRQTimeoutCountMax = TIMEOUT_COUNT;
 
+
+int (*TftpCallback)(uint32_t off, u8* buf, size_t len, void* ctx);
+void *TftpCtx = NULL;
+
 enum {
 	TFTP_ERR_UNDEFINED           = 0,
 	TFTP_ERR_FILE_NOT_FOUND      = 1,
@@ -132,39 +136,25 @@ mcast_cleanup(void)
 
 #endif	/* CONFIG_MCAST_TFTP */
 
+#ifdef CONFIG_SYS_DIRECT_FLASH_TFTP
+#error Not in UEMD
+#endif /* CONFIG_SYS_DIRECT_FLASH_TFTP */
+
 static ulong load_addr = CONFIG_LOADADDR;
 
-static __inline__ void
-store_block (unsigned block, uchar * src, unsigned len)
+static int store_block (unsigned block, uchar * src, unsigned len)
 {
 	ulong offset = block * TftpBlkSize + TftpBlockWrapOffset;
 	ulong newsize = offset + len;
-#ifdef CONFIG_SYS_DIRECT_FLASH_TFTP
-	int i, rc = 0;
+	int ret;
 
-	for (i=0; i<CONFIG_SYS_MAX_FLASH_BANKS; i++) {
-		/* start address in flash? */
-		if (flash_info[i].flash_id == FLASH_UNKNOWN)
-			continue;
-		if (load_addr + offset >= flash_info[i].start[0]) {
-			rc = 1;
-			break;
-		}
-	}
-
-	if (rc) { /* Flash is destination for this packet */
-		rc = flash_write ((char *)src, (ulong)(load_addr+offset), len);
-		if (rc) {
-			flash_perror (rc);
-			NetState = NETLOOP_FAIL;
-			return;
-		}
-	}
-	else
-#endif /* CONFIG_SYS_DIRECT_FLASH_TFTP */
-	{
+	if(TftpCallback)
+		ret = TftpCallback(offset, src, len, TftpCtx);
+	else {
 		(void)memcpy((void *)(load_addr + offset), src, len);
+		ret = 0;
 	}
+
 #ifdef CONFIG_MCAST_TFTP
 	if (Multicast)
 		ext2_set_bit(block, Bitmap);
@@ -172,6 +162,8 @@ store_block (unsigned block, uchar * src, unsigned len)
 
 	if (NetBootFileXferSize < newsize)
 		NetBootFileXferSize = newsize;
+
+	return ret;
 }
 
 static void TftpSend (void);
@@ -418,7 +410,14 @@ TftpHandler (uchar * pkt, unsigned dest, unsigned src, unsigned len)
 		TftpTimeoutCountMax = TIMEOUT_COUNT;
 		NetSetTimeout (TftpTimeoutMSecs, TftpTimeout);
 
-		store_block (TftpBlock - 1, pkt + 2, len);
+		if(0 != store_block (TftpBlock - 1, pkt + 2, len)) {
+			puts ("\nTFTP unable to store block\n");
+			eth_halt();
+			NetState = NETLOOP_FAIL;
+			TftpCallback = NULL;
+			TftpCtx = NULL;
+			break;
+		}
 
 		/*
 		 *	Acknoledge the block just received, which will prompt
@@ -595,18 +594,18 @@ TftpStart (void)
 	}
 	putc ('\n');
 
-	printf ("Filename '%s'.", tftp_filename);
+	printf ("TFTP Filename '%s'.", tftp_filename);
 
 	if (NetBootFileSize) {
-		printf (" Size is 0x%x Bytes = ", NetBootFileSize<<9);
+		printf (" Size is 0x%X Bytes = ", NetBootFileSize<<9);
 		print_size (NetBootFileSize<<9, "");
 	}
 
 	putc ('\n');
 
-	printf ("Load address: 0x%lx\n", load_addr);
+	printf ("TFTP Load address: 0x%lX\n", load_addr);
 
-	puts ("Loading: *\b");
+	puts ("TFTP Loading: *\b");
 
 	TftpTimeoutCountMax = TftpRRQTimeoutCountMax;
 

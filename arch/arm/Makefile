@@ -26,10 +26,16 @@ ARCH_DIR = arch/arm
 ARCH_CPPFLAGS = \
 	-DCONFIG_ARM \
 	-D__ARM__ \
-	-marm \
-	-mno-thumb-interwork \
-	-ffixed-r8 \
 	-I$(ARCH_DIR)/include
+
+ARCH_CFLAGS = \
+	-ffixed-r8 \
+	-marm \
+	-march=armv5t \
+	-mno-thumb-interwork \
+	-mabi=aapcs-linux \
+	-msoft-float \
+	-fno-stack-protector
 
 ARCH_OBJS = \
     $(ARCH_DIR)/lib/_ashldi3.o \

@@ -23,7 +23,6 @@
 
 # Make ARMv5 to allow more compilers to work, even though its v6.
 CPU_CPPFLAGS = \
-	-march=armv5t \
 	-mtune=arm1176jzf-s
 
 CPU_OBJS = arch/arm/cpu/arm1176/cpu.o

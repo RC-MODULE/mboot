@@ -53,18 +53,16 @@ CPPFLAGS = \
 	$(BOARD_CPPFLAGS) \
 	-DTEXT_BASE=$(BOARD_TEXT_BASE) \
 	-D__KERNEL__ \
-
-CFLAGS = \
-	$(CPPFLAGS) \
-	$(BOARD_CFLAGS) \
+	-nostdinc \
 	-include $(BOARD_CONFIG) \
 	-isystem $(shell $(CC) -print-file-name=include) \
-	-nostdinc \
+	-I include
+
+CFLAGS = \
+	$(BOARD_CFLAGS) \
 	-fno-common \
 	-fno-builtin \
 	-ffreestanding \
-	-Wstrict-prototypes \
-	-Iinclude \
 	-Wall \
 	-Werror \
 	-g \
@@ -72,24 +70,29 @@ CFLAGS = \
 
 ASFLAGS = $(CFLAGS)
 
+LDFLAGS = \
+	$(BOARD_LDFLAGS) \
+	-L $(shell dirname `$(CC) $(CFLAGS) -print-libgcc-file-name`) \
+	-lgcc
+
 DEPS = $(COBJS-y:.o=.d)
 
 rules.mk: $(DEPS)
 
 %.d: %.S
-	$(CC) -M $(CFLAGS) $< \
+	$(CC) -M $(CFLAGS) $(CPPFLAGS) $< \
 		| sed 's@\(.*\)\.o[ :]*@\1.o $@ : @g' > $@; \
         [ -s $@ ] || rm -f $@
 
 %.d: %.c
-	$(CC) -M $(CFLAGS) $< \
+	$(CC) -M $(CFLAGS) $(CPPFLAGS) $< \
 		| sed 's@\(.*\)\.o[ :]*@\1.o $@ : @g' > $@; \
         [ -s $@ ] || rm -f $@
 
 include $(DEPS)
 
 $(PROG): $(COBJS-y)
-	$(LD) -T $(BOARD_LDSCRIPT) -Ttext=$(BOARD_TEXT_BASE) --start-group $^ --end-group -o $@
+	$(LD) -T $(BOARD_LDSCRIPT) -Ttext=$(BOARD_TEXT_BASE) --start-group $^ --end-group $(LDFLAGS) -o $@
 
 $(PROG).bin: $(PROG)
 	$(OBJCOPY) -v -O binary $< $@

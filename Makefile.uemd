@@ -8,17 +8,12 @@ BOARD_LDSCRIPT = ./board/uemd/boot.lds
 BOARD_TEXT_BASE = 0x00100010
 
 BOARD_CPPFLAGS = \
-	$(COMMON_CPPFLAGS) \
 	$(ARCH_CPPFLAGS) \
 	$(CPU_CPPFLAGS)
 
 BOARD_CFLAGS = \
-	$(COMMON_CFLAGS) \
 	$(ARCH_CFLAGS) \
-	$(CPU_CFLAGS) \
-	-msoft-float \
-	-mabi=aapcs-linux \
-	-fno-stack-protector
+	$(CPU_CFLAGS)
 
 BOARD_OBJS = \
 	board/uemd/uemd.o \

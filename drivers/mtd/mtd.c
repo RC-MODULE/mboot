@@ -33,9 +33,11 @@
 #define CONFIG_SYS_MTD_BASE_LIST { CONFIG_SYS_MTD_BASE }
 #endif
 
-nand_info_t mtd_info[CONFIG_SYS_MAX_MTD_DEVICE];
+struct mtd_info mtd_info[CONFIG_SYS_MAX_MTD_DEVICE];
 
-/* Register mtd device. Return 0 on not-error (success or no device) */
+/* Register mtd device. Return 0 on not-error (success or no device)
+ * MTD subsystem uses malloc, it should be accessable at the moment of call
+ */
 int mtd_init(void)
 {
 	int ret;

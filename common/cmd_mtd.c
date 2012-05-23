@@ -252,6 +252,7 @@ int do_mtd(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 	}
 
 	if (strcmp(cmd, "read") == 0 ||
+	    strcmp(cmd, "ow") == 0 ||
 		strcmp(cmd, "write") == 0 ) {
 
 		ulong addr, size;
@@ -269,10 +270,13 @@ int do_mtd(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 
 		switch(cmd[0]) {
 			case 'r':
-				ret = mtd_read_pages(mtd, off, ~0LL, (u8*)addr, size);
+				ret = mtd_read_pages(mtd, off, mtd->size, (u8*)addr, size);
 				break;
 			case 'w':
-				ret = mtd_write_pages(mtd, off, ~0LL, (u8*)addr, size);
+				ret = mtd_write_pages(mtd, off, mtd->size, (u8*)addr, size);
+				break;
+			case 'o':
+				ret = mtd_overwrite_pages(mtd, off, mtd->size, (u8*)addr, size);
 				break;
 			default:
 				goto usage;
@@ -317,6 +321,7 @@ U_BOOT_CMD(
 	"mtd device [dev] - show or set current device\n"
 	"mtd read addr off size\n"
 	"mtd write addr off size\n"
+	"mtd ow addr off size\n"
 	"mtd erase off [size]\n"
 	"	- erases all the data\n"
 	"mtd scrub off [size]\n"
@@ -467,113 +472,6 @@ U_BOOT_CMD(mtdboot, 4, 1, do_mtdboot,
 	"boot from MTD device",
 	"[[[[loadAddr] dev] offset] maxsz]"
 );
-
-#if 0
-int do_mtdtest(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
-{
-#define verbose(s, args...) printf("mtdtest: " s, ##args)
-#define i32(d) ((unsigned long)((d)&0xffffffffULL))
-	int ret;
-	uint64_t result;
-	uint64_t offset; 
-	uint64_t size;
-	uint32_t addr1;
-	uint32_t addr2;
-	struct mtd_info *mtd;
-	int flags = mtd_stop_on_bad;
-
-	if(argc<5) {
-		return cmd_usage(cmdtp);
-	}
-
-	mtd = mtd_by_index(mtd_curr_device);
-	if(mtd == NULL) {
-		printf("Active mtd device %d is not valid\n", mtd_curr_device);
-		return -1;
-	}
-
-	verbose("Using MTD device:%s writeblock:0x%08X eraseblock:0x%08X\n",
-		mtd->name, mtd->writesize, mtd->erasesize);
-
-	offset = simple_strtoul(argv[1], NULL, 0);
-	size = simple_strtoul(argv[2], NULL, 0);
-	addr1 = simple_strtoul(argv[3], NULL, 0);
-	addr2 = simple_strtoul(argv[4], NULL, 0);
-
-	if(argc>5) {
-		const char* uflags = argv[5];
-		if(NULL != strchr(uflags, 'c')) {
-			verbose("Clearing memory at 0x%08X\n", addr1);
-			memset((void*)addr1, 0, size);
-		}
-		if(NULL != strchr(uflags, 'v')) {
-			flags |= mtd_verbose;
-		}
-		if(NULL != strchr(uflags, 'b')) {
-			flags &= ~mtd_stop_on_bad;
-		}
-		if(NULL != strchr(uflags, 'B')) {
-			flags |= mtd_ignore_bad;
-		}
-	}
-
-	verbose("Erasing MTD device starting at 0x%08lX\n", i32(offset));
-	ret = mtd_erase(mtd, offset, size, flags, &result);
-	if(ret != 0) {
-		verbose("mtd_erase failure\n");
-		return ret;
-	}
-
-	verbose("Writing data\n");
-	ret = mtd_write_page(mtd, (u_char *)addr1, size, offset, flags, &result); 
-	if(ret != 0) {
-		verbose("mtd_write_page failure\n");
-		return ret;
-	}
-
-	verbose("Reading data\n");
-	ret = mtd_read_page(mtd, (u_char *)addr2, size, offset, flags, &result); 
-	if(ret != 0) {
-		verbose("mtd_read_page failure\n");
-		return ret;
-	}
-
-	verbose("Comparing data\n");
-#define MEM(addr) (*((volatile uint32_t*)(addr)))
-	do {
-		int i, fail = -1;
-		for(i=0; i<size; i+=4) {
-			uint32_t src = MEM(addr1+i);
-			uint32_t dst = MEM(addr2+i);
-			if((fail<0) && (src!=dst)) {
-				fail = i;
-			}
-			if((fail>0) && (src==dst)) {
-				if(fail==i-4)
-					printf("Mismatching word at 0x%08X\n", fail);
-				else
-					printf("Mismatching block at [0x%08X..0x%08X]\n", fail, i-4);
-				fail = -1;
-			}
-		}
-	}
-	while(0);
-
-	return 0;
-#undef verbose
-}
-
-U_BOOT_CMD(mtdtest, 6, 0, do_mtdtest,
-	"test MTD device",
-	"off size addr1 addr2 [flags]\n"
-	"	off  - offset in MTD to read/write data\n"
-	"	size - size of data\n"
-	"	addr1 - data source\n"
-	"	addr2 - data destination\n"
-	"	flags - v-verbose; b-skip bad blocks; B-ignore bad blocks;\n"
-	"	        c-clear source mem before starting;\n"
-);
-#endif
 
 #ifdef CONFIG_SYS_MTD_QUIET
 #error Not in UEMD

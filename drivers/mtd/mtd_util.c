@@ -86,7 +86,7 @@ int mtd_read_pages(struct mtd_info *mtd,
 			flash_offset += nb;
 		}
 		else {
-			ret = mtd_read (mtd, flash_offset, &sz, buffer);
+			ret = mtd_read (mtd, flash_offset, buffer, sz);
 			if (ret < 0) {
 				printf("MTD read_pages read failure: off 0x%08llX ret %d\n",
 					flash_offset, ret);
@@ -110,70 +110,13 @@ err:
 	return ret;
 }
 
-int mtd_touch_pages(struct mtd_info *mtd,
-	loff_t flash_offset, loff_t flash_end,
-	size_t buffer_size)
-{
-	int ret;
-	loff_t flash_start = flash_offset;
-	u8 *buffer = malloc(mtd->writesize);
-
-	if(buffer == NULL) {
-		printf("MTD touch unable to allocate memory: bytes %d\n", mtd->writesize);
-		return -ENOMEM;
-	}
-
-	if(flash_end < flash_offset) {
-		printf("MTD touch error: start (0x%08llX) > end (0x%08llX)\n",
-			flash_offset, flash_end);
-		ret = -EINVAL;
-		goto err;
-	}
-
-	ret = 0;
-	while((buffer_size>0) && (flash_offset<flash_end)) {
-		uint64_t curr_eb = mtd_current_block(mtd, flash_offset);
-		/* size of user data left */
-		size_t sz = MIN(buffer_size, mtd->writesize);
-
-		if(flash_offset == flash_start || flash_offset == curr_eb) {
-			/* distance to next erase block */
-			uint64_t nb = MIN(flash_end - flash_offset, mtd->erasesize-(flash_offset - curr_eb));
-			ret = mtd_block_isbad(mtd, curr_eb);
-			if(ret < 0) {
-				printf("MTD touch_pages isbad failure: ret %d\n", ret);
-				goto err;
-			}
-			if(ret == 1) {
-				printf("MTD skipping bad block: off 0x%08llX\n", curr_eb);
-				flash_offset += nb;
-				continue;
-			}
-		}
-		
-		ret = mtd_read (mtd, flash_offset, &sz, buffer);
-		if (ret < 0) {
-			printf("MTD touch_pages read failure: off 0x%08llX ret %d\n",
-				flash_offset, ret);
-			goto err;
-		}
-
-		flash_offset += sz;
-		buffer_size -= sz;
-	}
-
-err:
-	free(buffer);
-	return ret;
-}
-
 /*
  * Fits user data to the [flash_offset, flash_offset + flash_size) MTD area.
  * Skips bad blocks. All sizes should be page-aligned.
  *
  * Returns 0 on succcess (all user data has been transfered).
  */
-static int mtd_write_pages_raw(struct mtd_info *mtd,
+int mtd_write_pages(struct mtd_info *mtd,
 	loff_t flash_offset, loff_t flash_end,
 	u8* buffer, size_t buffer_size)
 {
@@ -181,11 +124,19 @@ static int mtd_write_pages_raw(struct mtd_info *mtd,
 	u8 *buffer_start = buffer;
 	u8 *buffer_end = buffer + buffer_size;
 	loff_t flash_start = flash_offset;
+	loff_t off;
+	u8 *page;
 
 	if(flash_end < flash_offset) {
 		printf("MTD error: start (0x%08llX) > end (0x%08llX)\n",
 			flash_offset, flash_end);
 		return -EINVAL;
+	}
+
+	page = malloc(mtd->writesize);
+	if(page == NULL) {
+		printf("MTD write_pages unable to allocate memory\n");
+		return -ENOMEM;
 	}
 
 	ret = 0;
@@ -204,18 +155,50 @@ static int mtd_write_pages_raw(struct mtd_info *mtd,
 		if(ret == 1) {
 			printf("MTD write_pages skipping bad block: off 0x%08llX\n", curr_eb);
 			flash_offset += nb;
+			ret = 0;
+			continue;
+		}
+
+		if(sz % mtd->writesize != 0) {
+			size_t wsz = sz - (sz % mtd->writesize);
+			ret = mtd_write (mtd, flash_offset, buffer, wsz);
+			if (ret < 0) {
+				printf("MTD write_pages write1 failure: off 0x%08llX ret %d\n",
+					flash_offset, ret);
+				goto err;
+			}
+
+			memcpy(page, buffer+wsz, sz-wsz);
+			memset(page+(sz-wsz), 0xFE, mtd->writesize-(sz-wsz));
+
+			assert(mtd->writesize < nb-wsz);
+			ret = mtd_write (mtd, flash_offset+wsz, page, mtd->writesize);
+			if (ret < 0) {
+				printf("MTD write_pages write2 failure: off 0x%08llX ret %d\n",
+					flash_offset+wsz, ret);
+				goto err;
+			}
 		}
 		else {
-			ret = mtd_write (mtd, flash_offset, &sz, buffer);
+			ret = mtd_write (mtd, flash_offset, buffer, sz);
 			if (ret < 0) {
 				printf("MTD write_pages write failure: off 0x%08llX ret %d\n",
 					flash_offset, ret);
 				goto err;
 			}
-
-			flash_offset += sz;
-			buffer += sz;
 		}
+
+		for(off=flash_offset; off<(flash_offset+nb); off+=mtd->writesize) {
+			ret = mtd_read (mtd, off, page, mtd->writesize);
+			if (ret < 0) {
+				printf("MTD write touch_pages read failure: off 0x%08llX ret %d\n",
+					off, ret);
+				goto err;
+			}
+		}
+
+		flash_offset += nb;
+		buffer += sz;
 	}
 
 	if(buffer < buffer_end) {
@@ -223,41 +206,13 @@ static int mtd_write_pages_raw(struct mtd_info *mtd,
 			"MTD write_pages unable to write all the data: "
 			"off 0x%08llX sz 0x%08X written 0x%X\n",
 			flash_start, buffer_size, buffer - buffer_start);
-		return -EFAULT;
+		ret = -EFAULT;
+		goto err;
 	}
 
 err:
+	free(page);
 	return ret;
-}
-
-/*
- * Fits user data to the [flash_offset, flash_offset + flash_size) MTD area
- * excluding bad blocks. Reads those data back to force hardware CRC check. 
- * buffer_size should be eq to whole number of mtd pages.
- *
- * Returns 0 on succcess.
- */
-int mtd_write_pages(struct mtd_info *mtd,
-	loff_t flash_offset, loff_t flash_end,
-	u8* buffer, size_t buffer_size)
-{
-	int ret;
-
-	ret = mtd_write_pages_raw(mtd,
-		flash_offset, flash_end,
-		buffer, buffer_size);
-	if(ret < 0) {
-		printf("MTD write_pages_raw failed: ret %d\n", ret);
-		return ret;
-	}
-
-	ret = mtd_touch_pages(mtd, flash_offset, flash_end, buffer_size);
-	if(ret < 0) {
-		printf("MTD touch-after-write failed: ret %d\n", ret);
-		return ret;
-	}
-
-	return 0;
 }
 
 
@@ -273,7 +228,7 @@ int mtd_erase(
 	int ret;
 	struct erase_info erase;
 
-	if ((offset & (mtd->erasesize-1)) != 0) {
+	if (offset % mtd->erasesize) {
 		printf("MTD Attempt to erase non page aligned data\n");
 		return -EINVAL;
 	}
@@ -283,7 +238,7 @@ int mtd_erase(
 		return -EINVAL;
 	}
 
-	if ((size & (mtd->erasesize-1))!=0) {
+	if (size % mtd->erasesize) {
 		printf("MTD Attempt to erase non page sized data\n");
 		return -EINVAL;
 	}
@@ -328,6 +283,135 @@ int mtd_erase(
 	return bb;
 
 err:
+	return ret;
+}
+
+/* 
+ * Overwrites data on the mtd device.
+ * Returns: 0 - ok, >0  - # of bad blocks, < 0 - error
+ */
+int mtd_overwrite_pages(struct mtd_info* mtd,
+	loff_t flash_offset, loff_t flash_end,
+	u8* buffer, size_t buffer_size)
+{
+	int bb;
+	int ret;
+	struct erase_info erase;
+	u8 *buffer_start = buffer;
+	u8 *buffer_end = buffer + buffer_size;
+	u8 *page;
+	loff_t flash_start = flash_offset;
+	loff_t off;
+
+	if (flash_offset % mtd->erasesize) {
+		printf("MTD bad flash_offset\n");
+		return -EINVAL;
+	}
+
+	if (flash_end % mtd->erasesize) {
+		printf("MTD bad flash_size\n");
+		return -EINVAL;
+	}
+
+	page = malloc(mtd->writesize);
+	if(page == NULL) {
+		printf("MTD overwrite unable to allocate memory\n");
+		return -ENOMEM;
+	}
+
+	memset(&erase, 0, sizeof(erase));
+	erase.mtd = mtd;
+
+	ret = 0;
+	bb = 0;
+
+	while((buffer<buffer_end) && (flash_offset<flash_end)) {
+		/* distance to next erase block */
+		uint64_t nb = MIN(flash_end - flash_offset, mtd->erasesize);
+		/* size of user data chunk */
+		size_t sz = MIN(buffer_end - buffer, nb);
+
+		WATCHDOG_RESET ();
+
+		ret = mtd->block_isbad(mtd, flash_offset);
+		if(ret < 0) {
+			printf("MTD bad block detection failure: offset 0x%08llX\n",
+				flash_offset);
+			goto err;
+		}
+		else if (ret == 1) {
+			printf("MTD skipping bad block: off 0x%08llX\n",
+				flash_offset);
+			bb += 1;
+			flash_offset += nb;
+			ret = 0;
+			continue;
+		}
+
+		erase.addr = flash_offset;
+		erase.len = MIN(nb, mtd->erasesize);
+		ret = mtd->erase(mtd, &erase);
+		if (ret != 0) {
+			printf("MTD overwrite_pages erase failure: off 0x%08llX ret %d\n",
+				erase.addr, ret);
+			goto err;
+		}
+
+		if(sz % mtd->writesize != 0) {
+			size_t wsz = sz - (sz % mtd->writesize);
+			ret = mtd_write (mtd, flash_offset, buffer, wsz);
+			if (ret < 0) {
+				printf("MTD overwrite_pages write1 failure: off 0x%08llX ret %d\n",
+					flash_offset, ret);
+				goto err;
+			}
+
+			memcpy(page, buffer+wsz, sz-wsz);
+			memset(page+(sz-wsz), 0xFE, mtd->writesize-(sz-wsz));
+
+			assert(mtd->writesize < nb-wsz);
+			ret = mtd_write (mtd, flash_offset+wsz, page, mtd->writesize);
+			if (ret < 0) {
+				printf("MTD overwrite_pages write2 failure: off 0x%08llX ret %d\n",
+					flash_offset+wsz, ret);
+				goto err;
+			}
+		}
+		else {
+			ret = mtd_write (mtd, flash_offset, buffer, sz);
+			if (ret < 0) {
+				printf("MTD overwrite_pages write failure: off 0x%08llX ret %d\n",
+					flash_offset, ret);
+				goto err;
+			}
+		}
+
+		for(off=flash_offset; off<(flash_offset+nb); off+=mtd->writesize) {
+			ret = mtd_read (mtd, off, page, mtd->writesize);
+			if (ret < 0) {
+				printf("MTD overwrite touch_pages read failure: off 0x%08llX ret %d\n",
+					off, ret);
+				goto err;
+			}
+		}
+
+		buffer += sz;
+		flash_offset += nb;
+	}
+
+	if(buffer < buffer_end) {
+		printf(
+			"MTD overwrite_pages unable to write all the data: "
+			"off 0x%08llX sz 0x%08X written 0x%X\n",
+			flash_start, buffer_size, buffer - buffer_start);
+		ret = -EFAULT;
+		goto err;
+	}
+
+	ret = bb;
+
+err:
+	free(page);
 	return ret;
 }
 

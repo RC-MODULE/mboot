@@ -20,14 +20,16 @@ static inline int mtd_get_index(struct mtd_info* mtd)
 	return (mtd - mtd_info) / sizeof(struct mtd_info);
 }
 
-static inline int mtd_read(struct mtd_info *info, loff_t ofs, size_t *len, u_char *buf)
+static inline int mtd_read(struct mtd_info *info, loff_t ofs, u_char *buf, size_t len)
 {
-	return info->read(info, ofs, *len, (size_t *)len, buf);
+	size_t tmp;
+	return info->read(info, ofs, len, &tmp, buf);
 }
 
-static inline int mtd_write(struct mtd_info *info, loff_t ofs, size_t *len, u_char *buf)
+static inline int mtd_write(struct mtd_info *info, loff_t ofs, u_char *buf, size_t len)
 {
-	return info->write(info, ofs, *len, (size_t *)len, buf);
+	size_t tmp;
+	return info->write(info, ofs, len, &tmp, buf);
 }
 
 static inline int mtd_block_isbad(struct mtd_info *info, loff_t ofs)
@@ -76,6 +78,10 @@ int mtd_write_pages(struct mtd_info *mtd,
 	u8* buffer, size_t buffer_size);
 
 int mtd_read_pages(struct mtd_info *mtd,
+	loff_t flash_offset, loff_t flash_end,
+	u8* buffer, size_t buffer_size);
+
+int mtd_overwrite_pages(struct mtd_info* mtd,
 	loff_t flash_offset, loff_t flash_end,
 	u8* buffer, size_t buffer_size);
 

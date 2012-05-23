@@ -201,7 +201,8 @@
 /*
  * Booting
  */
-#define CONFIG_BOOTFILE    "/tftpboot/smironov-boot/uImage-latest"
+#define CONFIG_BOOTDIR    "/tftpboot/smironov-boot"
+#define CONFIG_BOOTFILE    CONFIG_BOOTDIR "/uImage"
 #define CONFIG_BOOTARGS    "earlyprintk=serial console=ttyS0,38400n8 root=/dev/nfs nfsroot=10.0.0.1:/home/smironov/arm-module2-linux-gnueabi ip=10.0.0.2:10.0.0.1:10.0.0.1:255.255.255.0:UEMD:eth0:off greth.pure10Mbit=1 debug"
 #define CONFIG_LOADADDR    0x40100000
 //#define CONFIG_BOOTCOMMAND "tftp"
@@ -226,11 +227,13 @@
 //#define CONFIG_CMD_ASKENV
 //#define CONFIG_CMD_EDITENV
 #define CONFIG_CMD_MISC
+#define CONFIG_CMD_FWUPGRADE
+
 /* Linux command line */
 #define CONFIG_CMDLINE_TAG          1   /* enable passing of ATAGs */
 #define CONFIG_SETUP_MEMORY_TAGS    1
 
-#define CONFIG_CMD_UEMD_DRAM
+/* #define CONFIG_CMD_UEMD_DRAM */
 
 /*
  * Miscellaneous configurable options

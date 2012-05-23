@@ -38,6 +38,7 @@ COBJS-$(CONFIG_CMD_SOURCE) += cmd_source.o
 COBJS-$(CONFIG_CMD_BDI) += cmd_bdinfo.o
 COBJS-$(CONFIG_CMD_BEDBUG) += bedbug.o cmd_bedbug.o
 COBJS-$(CONFIG_CMD_BMP) += cmd_bmp.o
+COBJS-$(CONFIG_CMD_FWUPGRADE) += cmd_fwupgrade.o
 COBJS-$(CONFIG_CMD_BOOTLDR) += cmd_bootldr.o
 COBJS-$(CONFIG_CMD_CACHE) += cmd_cache.o
 #COBJS-$(CONFIG_CMD_CONSOLE) += cmd_console.o

@@ -23,6 +23,7 @@ all: $(PROG).bin
 clean:
 	-@rm mboot* >/dev/null
 	-@find -name '*\.o' -exec rm '{}' ';'
+	-@find -name '*\.t' -exec rm '{}' ';'
 	-@find -name '*\.d' -exec rm '{}' ';'
 
 rules.mk: $(PROG).config $(shell find arch board common drivers net lib fs -name Makefile)
@@ -48,6 +49,8 @@ LD = $(CROSS_COMPILE)ld
 AR = $(CROSS_COMPILE)ar
 OBJCOPY = $(CROSS_COMPILE)objcopy
 OBJDUMP = $(CROSS_COMPILE)objdump 
+
+CTAGS = ctags
 
 CPPFLAGS = \
 	$(BOARD_CPPFLAGS) \
@@ -76,6 +79,7 @@ LDFLAGS = \
 	-lgcc
 
 DEPS = $(COBJS-y:.o=.d)
+TAGS = $(COBJS-y:.o=.t)
 
 rules.mk: $(DEPS)
 
@@ -88,6 +92,14 @@ rules.mk: $(DEPS)
 	$(CC) -M $(CFLAGS) $(CPPFLAGS) $< \
 		| sed 's@\(.*\)\.o[ :]*@\1.o $@ : @g' > $@; \
         [ -s $@ ] || rm -f $@
+
+%.t: %.c
+	$(CTAGS) -o tags --append=yes $<
+
+%.t: %.S
+	$(CTAGS) -o tags --append=yes $<
+
+tags: $(TAGS)
 
 include $(DEPS)
 

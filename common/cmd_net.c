@@ -193,26 +193,22 @@ netboot_common (proto_t proto, cmd_tbl_t *cmdtp, int argc, char * const argv[])
 		break;
 
 	default:
-		show_boot_progress (-80);
 		return cmd_usage(cmdtp);
 	}
 
 	setenv_ul("loadaddr", "0x%08lX", load_addr);
 	setenv_s("bootfile", BootFile);
 
-	show_boot_progress (80);
 	if ((size = NetLoop(proto)) < 0) {
-		show_boot_progress (-81);
+		printf("NET transfer failed: ret %d\n", size);
 		return 1;
 	}
 
-	show_boot_progress (81);
 	/* NetLoop ok, update environment */
 	netboot_update_env();
 
 	/* done if no file was loaded (no errors though) */
 	if (size == 0) {
-		show_boot_progress (-82);
 		return 0;
 	}
 
@@ -227,14 +223,9 @@ netboot_common (proto_t proto, cmd_tbl_t *cmdtp, int argc, char * const argv[])
 
 		printf ("Automatic boot of image at addr 0x%08lX ...\n",
 			load_addr);
-		show_boot_progress (82);
 		rcode = do_bootm (cmdtp, 0, 1, local_args);
 	}
 
-	if (rcode < 0)
-		show_boot_progress (-83);
-	else
-		show_boot_progress (84);
 	return rcode;
 }
 

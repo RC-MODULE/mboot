@@ -1384,6 +1384,7 @@ static int mnand_write_oob(struct mtd_info* mtd, loff_t to, struct mtd_oob_ops* 
         return -EINVAL;
     }
 
+	err = 0;
 	for(;(data !=dataend) || (oob !=oobend);) {
 		memset(g_chip.dma_area, 0xFF, g_chip.mtd->writesize + g_chip.mtd->oobsize);
 

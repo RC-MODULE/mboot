@@ -10,34 +10,22 @@
  */
 
 #include <common.h>
-#include <malloc.h>
-#include <asm/errno.h>
+#include <errno.h>
+#include <mtd.h>
+#include <mtdpart.h>
 
 #include <linux/types.h>
 #include <linux/list.h>
-#include <linux/mtd/mtd.h>
-#include <linux/mtd/partitions.h>
 #include <linux/mtd/compat.h>
 
 /* Our partition linked list */
-struct list_head mtd_partitions;
-
-/* Our partition node structure */
-struct mtd_part {
-	struct mtd_info mtd;
-	struct mtd_info *master;
-	uint64_t offset;
-	int index;
-	struct list_head list;
-	int registered;
-};
+LIST_HEAD(g_mtdpats_list);
 
 /*
  * Given a pointer to the MTD object in the mtd_part structure, we can retrieve
  * the pointer to that structure with this macro.
  */
 #define PART(x)  ((struct mtd_part *)(x))
-
 
 /*
  * MTD methods which simply translate the effective address and pass through
@@ -255,45 +243,14 @@ static int part_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	return res;
 }
 
-/*
- * This function unregisters and destroy all slave MTD objects which are
- * attached to the given master MTD object.
- */
-
-int del_mtd_partitions(struct mtd_info *master)
+static int add_one_partition(struct mtd_info *master,
+	struct mtd_part *part, int partno, uint64_t cur_offset)
 {
-	struct mtd_part *slave, *next;
-
-	list_for_each_entry_safe(slave, next, &mtd_partitions, list)
-		if (slave->master == master) {
-			list_del(&slave->list);
-			if (slave->registered)
-				del_mtd_device(&slave->mtd);
-			kfree(slave);
-		}
-
-	return 0;
-}
-
-static struct mtd_part *add_one_partition(struct mtd_info *master,
-		const struct mtd_partition *part, int partno,
-		uint64_t cur_offset)
-{
-	struct mtd_part *slave;
-
-	/* allocate the partition structure */
-	slave = kzalloc(sizeof(*slave), GFP_KERNEL);
-	if (!slave) {
-		printk(KERN_ERR"memory allocation error while creating partitions for \"%s\"\n",
-			master->name);
-		del_mtd_partitions(master);
-		return NULL;
-	}
-	list_add(&slave->list, &mtd_partitions);
+	struct mtd_part *slave = part;
 
 	/* set up the MTD object for this partition */
 	slave->mtd.type = master->type;
-	slave->mtd.flags = master->flags & ~part->mask_flags;
+	slave->mtd.flags = master->flags; // & ~part->mask_flags;
 	slave->mtd.size = part->size;
 	slave->mtd.writesize = master->writesize;
 	slave->mtd.oobsize = master->oobsize;
@@ -337,8 +294,8 @@ static struct mtd_part *add_one_partition(struct mtd_info *master,
 		slave->mtd.block_markbad = part_block_markbad;
 	slave->mtd.erase = part_erase;
 	slave->master = master;
-	slave->offset = part->offset;
-	slave->index = partno;
+	//slave->offset = part->offset;
+	//slave->index = partno;
 
 	if (slave->offset == MTDPART_OFS_APPEND)
 		slave->offset = cur_offset;
@@ -347,7 +304,7 @@ static struct mtd_part *add_one_partition(struct mtd_info *master,
 		if (mtd_mod_by_eb(cur_offset, master) != 0) {
 			/* Round up to next erasesize */
 			slave->offset = (mtd_div_by_eb(cur_offset, master) + 1) * master->erasesize;
-			printk(KERN_NOTICE "Moving partition %d: "
+			MTDDEBUG(2, "MTD moving partition %d: "
 			       "0x%012llx -> 0x%012llx\n", partno,
 			       (unsigned long long)cur_offset, (unsigned long long)slave->offset);
 		}
@@ -355,7 +312,7 @@ static struct mtd_part *add_one_partition(struct mtd_info *master,
 	if (slave->mtd.size == MTDPART_SIZ_FULL)
 		slave->mtd.size = master->size - slave->offset;
 
-	printk(KERN_NOTICE "0x%012llx-0x%012llx : \"%s\"\n", (unsigned long long)slave->offset,
+	MTDDEBUG(2, "MTD 0x%012llx-0x%012llx : \"%s\"\n", (unsigned long long)slave->offset,
 		(unsigned long long)(slave->offset + slave->mtd.size), slave->mtd.name);
 
 	/* let's do some sanity checks */
@@ -363,13 +320,14 @@ static struct mtd_part *add_one_partition(struct mtd_info *master,
 		/* let's register it anyway to preserve ordering */
 		slave->offset = 0;
 		slave->mtd.size = 0;
-		printk(KERN_ERR"mtd: partition \"%s\" is out of reach -- disabled\n",
+		printk("MTD: partition \"%s\" is out of reach -- disabled\n",
 			part->name);
 		goto out_register;
 	}
 	if (slave->offset + slave->mtd.size > master->size) {
 		slave->mtd.size = master->size - slave->offset;
-		printk(KERN_WARNING"mtd: partition \"%s\" extends beyond the end of device \"%s\" -- size truncated to %#llx\n",
+		printk("MTD: partition \"%s\" extends beyond the end of device "
+			"\"%s\" -- size truncated to %#llx\n",
 			part->name, master->name, (unsigned long long)slave->mtd.size);
 	}
 	if (master->numeraseregions > 1) {
@@ -403,17 +361,21 @@ static struct mtd_part *add_one_partition(struct mtd_info *master,
 		/* FIXME: Let it be writable if it is on a boundary of
 		 * _minor_ erase size though */
 		slave->mtd.flags &= ~MTD_WRITEABLE;
-		printk(KERN_WARNING"mtd: partition \"%s\" doesn't start on an erase block boundary -- force read-only\n",
+		printk("MTD: partition \"%s\" doesn't start on an "
+			"erase block boundary -- force read-only\n",
 			part->name);
 	}
 	if ((slave->mtd.flags & MTD_WRITEABLE) &&
 	    mtd_mod_by_eb(slave->mtd.size, &slave->mtd)) {
 		slave->mtd.flags &= ~MTD_WRITEABLE;
-		printk(KERN_WARNING"mtd: partition \"%s\" doesn't end on an erase block -- force read-only\n",
+		printk("MTD: partition \"%s\" doesn't end on "
+			"an erase block -- force read-only\n",
 			part->name);
 	}
 
 	slave->mtd.ecclayout = master->ecclayout;
+
+#if 0
 	if (master->block_isbad) {
 		uint64_t offs = 0;
 
@@ -424,18 +386,11 @@ static struct mtd_part *add_one_partition(struct mtd_info *master,
 			offs += slave->mtd.erasesize;
 		}
 	}
+#endif
 
-out_register:
-	if (part->mtdp) {
-		/* store the object pointer (caller may or may not register it*/
-		*part->mtdp = &slave->mtd;
-		slave->registered = 0;
-	} else {
-		/* register our partition */
-		add_mtd_device(&slave->mtd);
-		slave->registered = 1;
-	}
-	return slave;
+out_register: 
+	list_add(&slave->list, &g_mtdpats_list);
+	return 0;
 }
 
 /*
@@ -447,30 +402,30 @@ out_register:
  * for reasons of data integrity.
  */
 
-int add_mtd_partitions(struct mtd_info *master,
-		       const struct mtd_partition *parts,
-		       int nbparts)
+int mtdparts_add(struct mtd_info *master, struct mtd_part *parts)
 {
-	struct mtd_part *slave;
-	uint64_t cur_offset = 0;
+	uint64_t cur_offset;
 	int i;
+	int ret;
 
-	/*
-	 * Need to init the list here, since LIST_INIT() does not
-	 * work on platforms where relocation has problems (like MIPS
-	 * & PPC).
-	 */
-	if (mtd_partitions.next == NULL)
-		INIT_LIST_HEAD(&mtd_partitions);
+	cur_offset = 0;
+	for(i=0, parts; !parts->last; parts++,i++) {
+		ret = add_one_partition(master, parts, i, cur_offset);
+		if(ret != 0) {
+			printf("MTD failed to create partition: mtd %s partno %d\n",
+				master->name, i);
+			return ret;
+		}
+		ret = mtd_add(&parts->mtd);
+		if(ret != 0) {
+			printf("MTD failed to register partition: part \"%s\"\n",
+				parts->name);
+			return ret;
+		}
 
-	printk(KERN_NOTICE "Creating %d MTD partitions on \"%s\":\n", nbparts, master->name);
-
-	for (i = 0; i < nbparts; i++) {
-		slave = add_one_partition(master, parts + i, i, cur_offset);
-		if (!slave)
-			return -ENOMEM;
-		cur_offset = slave->offset + slave->mtd.size;
+		cur_offset = parts->offset + parts->mtd.size;
 	}
 
 	return 0;
 }
+

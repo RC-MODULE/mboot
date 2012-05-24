@@ -8,6 +8,7 @@
 #define __MTD_MTD_H__
 
 #include <linux/types.h>
+#include <linux/list.h>
 #include <div64.h>
 #include <linux/mtd/mtd-abi.h>
 
@@ -135,7 +136,7 @@ struct mtd_info {
 	/* Kernel-only stuff starts here. */
 	const char *name;
 
-	/*int index; Use mtd_get_index() instead */
+	//int index;
 
 	/* ecc layout structure pointer - read only ! */
 	struct nand_ecclayout *ecclayout;
@@ -234,58 +235,13 @@ struct mtd_info {
 	 * supposed to be called by MTD users */
 	int (*get_device) (struct mtd_info *mtd);
 	void (*put_device) (struct mtd_info *mtd);
-};
 
-static inline uint32_t mtd_div_by_eb(uint64_t sz, struct mtd_info *mtd)
-{
-	do_div(sz, mtd->erasesize);
-	return sz;
-}
-
-static inline uint32_t mtd_mod_by_eb(uint64_t sz, struct mtd_info *mtd)
-{
-	return do_div(sz, mtd->erasesize);
-}
-
-	/* Kernel-side ioctl definitions */
-
-extern int add_mtd_device(struct mtd_info *mtd);
-extern int del_mtd_device (struct mtd_info *mtd);
-
-extern struct mtd_info *get_mtd_device(struct mtd_info *mtd, int num);
-extern struct mtd_info *get_mtd_device_nm(const char *name);
-
-extern void put_mtd_device(struct mtd_info *mtd);
-extern void mtd_get_len_incl_bad(struct mtd_info *mtd, uint64_t offset,
-				 const uint64_t length, uint64_t *len_incl_bad,
-				 int *truncated);
-/* XXX U-BOOT XXX */
-#if 0
-struct mtd_notifier {
-	void (*add)(struct mtd_info *mtd);
-	void (*remove)(struct mtd_info *mtd);
 	struct list_head list;
 };
 
-extern void register_mtd_user (struct mtd_notifier *new);
-extern int unregister_mtd_user (struct mtd_notifier *old);
 
-int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
-		       unsigned long count, loff_t to, size_t *retlen);
+#define MTD_INITIALISER(nm) {.name = nm }
 
-int default_mtd_readv(struct mtd_info *mtd, struct kvec *vecs,
-		      unsigned long count, loff_t from, size_t *retlen);
-#endif
-
-#ifdef CONFIG_MTD_PARTITIONS
-void mtd_erase_callback(struct erase_info *instr);
-#else
-static inline void mtd_erase_callback(struct erase_info *instr)
-{
-	if (instr->callback)
-		instr->callback(instr);
-}
-#endif
 
 /*
  * Debugging macro and defines
@@ -308,5 +264,16 @@ static inline void mtd_erase_callback(struct erase_info *instr)
 			printk(KERN_INFO args);		\
 	} while(0)
 #endif /* CONFIG_MTD_DEBUG */
+
+static inline uint32_t mtd_div_by_eb(uint64_t sz, struct mtd_info *mtd)
+{
+	do_div(sz, mtd->erasesize);
+	return sz;
+}
+
+static inline uint32_t mtd_mod_by_eb(uint64_t sz, struct mtd_info *mtd)
+{
+	return do_div(sz, mtd->erasesize);
+}
 
 #endif /* __MTD_MTD_H__ */

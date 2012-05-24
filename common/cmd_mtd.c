@@ -68,7 +68,7 @@ static int mtd_dump(struct mtd_info *mtd, loff_t off, int only_oob)
 		printf("MTD error reading page: off 0x%08llX ret %d\n", off, ret);
 	}
 
-	printf("MTD page dump: off 0x%08llX\n", off);
+	printf("MTD page dump: name %s off 0x%08llX\n", mtd->name, off);
 	i = mtd->writesize >> 4;
 	p = datbuf;
 	while (i--) {
@@ -90,27 +90,12 @@ static int mtd_dump(struct mtd_info *mtd, loff_t off, int only_oob)
 		p += 8;
 	}
 
-	printf("MTD page dump complete: off 0x%08llX next 0x%08llX\n", off, (off + mtd->writesize));
+	printf("MTD page dump complete: name %s off 0x%08llX next 0x%08llX\n",
+		mtd->name, off, (off + mtd->writesize));
 
 	free(datbuf);
 	free(oobbuf);
 	return ret;
-}
-
-static int mtd_curr_device = 0;
-
-static int mtd_set_dev(int dev)
-{
-	struct mtd_info *mtd;
-	for_all_mtd(mtd) {
-		if(mtd_get_index(mtd) == dev) {
-			printf("New current mtd device: index %d name %s\n",
-				mtd_get_index(mtd), mtd->name);
-			mtd_curr_device = dev;
-			return 0;
-		}
-	}
-	return -1;
 }
 
 static inline int str2off(const char *p, loff_t *num)
@@ -143,7 +128,7 @@ static inline int str2addr(const char *p, unsigned long *num)
 
 static void mtd_print_info(struct mtd_info *mtd)
 {
-	printf("mtd_nfo: descr      index %d name %s\n", mtd_get_index(mtd), mtd->name);
+	printf("mtd_nfo: name       %s\n", mtd->name);
 	printf("mtd_nfo: size       0x%08llX (%llu b / %llu M)\n",
 		mtd->size, mtd->size, mtd->size/(1024*1024));
 	printf("mtd_nfo: write_size 0x%08X (%u)\n", mtd->writesize, mtd->writesize);
@@ -174,21 +159,12 @@ int do_mtd(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 	}
 
 	if(strcmp(cmd, "device") == 0) {
-		int dev;
-
 		check(argc == 3, goto usage);
-
-		dev = simple_strtoul(argv[2], NULL, 0);
-
-		ret = mtd_set_dev(dev);
-		if(ret != 0) {
-			printf("Failed to set mtd device: ret %d\n", ret);
-			return -1;
-		}
+		setenv_s(MTD_ENV_NAME, argv[2]);
 		return 0;
 	}
 
-	mtd = mtd_by_index(mtd_curr_device);
+	mtd = mtd_get_default();
 	if(mtd == NULL) {
 		printf("No MTD devices available\n");
 		return -1;
@@ -315,7 +291,7 @@ usage:
 }
 
 U_BOOT_CMD(
-	mtd, CONFIG_SYS_MAXARGS, 1, do_mtd,
+	mtd, CONFIG_SYS_MAXARGS, 0, do_mtd,
 	"MTD subsystem",
 	"info - show available MTD devices\n"
 	"mtd device [dev] - show or set current device\n"
@@ -425,7 +401,6 @@ int do_mtdboot(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
 	struct mtd_info * mtd;
 	char boot_device[MAXPATH];
-	int idx;
 	ulong addr;
 	loff_t offset = CONFIG_SYS_KERNEL_OFF;
 	loff_t sz = CONFIG_SYS_KERNEL_SIZE;
@@ -433,11 +408,11 @@ int do_mtdboot(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 	switch (argc) {
 	case 1:
 		getenv_ul("loadaddr", &addr, CONFIG_LOADADDR);
-		getenv_s("bootdevice", &boot_device[0], "0");
+		getenv_s(MTD_ENV_NAME, &boot_device[0], "mtd0");
 		break;
 	case 2:
 		addr = simple_strtoul(argv[1], NULL, 16);
-		getenv_s("bootdevice", &boot_device[0], "0");
+		getenv_s(MTD_ENV_NAME, &boot_device[0], "mtd0");
 		break;
 	case 3:
 		addr = simple_strtoul(argv[1], NULL, 16);
@@ -458,17 +433,16 @@ int do_mtdboot(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 		return cmd_usage(cmdtp);
 	}
 
-	idx = simple_strtoul(boot_device, NULL, 0);
-	mtd = mtd_by_index(idx);
+	mtd = mtd_by_name(boot_device);
 	if(mtd == NULL) {
-		printf("MTD device %d not available\n", idx);
+		printf("MTD device '%s' not available\n", boot_device);
 		return -1;
 	}
 
 	return mtd_load_image(cmdtp, mtd, offset, sz, addr, argv[0]);
 }
 
-U_BOOT_CMD(mtdboot, 4, 1, do_mtdboot,
+U_BOOT_CMD(mtdboot, 4, 0, do_mtdboot,
 	"boot from MTD device",
 	"[[[[loadAddr] dev] offset] maxsz]"
 );

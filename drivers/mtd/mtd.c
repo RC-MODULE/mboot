@@ -26,34 +26,22 @@
  */
 
 #include <common.h>
-#include <nand.h>
+#include <malloc.h>
 #include <mtd.h>
+#include <errno.h>
 
 #ifndef CONFIG_SYS_MTD_BASE_LIST
 #define CONFIG_SYS_MTD_BASE_LIST { CONFIG_SYS_MTD_BASE }
 #endif
 
-struct mtd_info mtd_info[CONFIG_SYS_MAX_MTD_DEVICE];
+LIST_HEAD(g_mtd_list);
 
 /* Register mtd device. Return 0 on not-error (success or no device)
  * MTD subsystem uses malloc, it should be accessable at the moment of call
  */
-int mtd_init(void)
+int mtd_add(struct mtd_info *mtd)
 {
-	int ret;
-	ulong base_address[CONFIG_SYS_MAX_MTD_DEVICE] = CONFIG_SYS_MTD_BASE_LIST;
-
-	memset(mtd_info, 0, sizeof(mtd_info));
-
-	ret = board_mtd_init(mtd_info, base_address, CONFIG_SYS_MAX_MTD_DEVICE);
-	if(ret < 0) {
-		error("faild to register mtd devices: ret %d", ret);
-		goto err;
-	}
-
+	list_add(&mtd->list, &g_mtd_list);
 	return 0;
-
-err:
-	return ret;
 }
 

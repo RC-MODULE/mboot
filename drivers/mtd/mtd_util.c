@@ -359,11 +359,13 @@ int mtd_overwrite_pages(struct mtd_info* mtd,
 
 		if(sz % mtd->writesize != 0) {
 			size_t wsz = sz - (sz % mtd->writesize);
-			ret = mtd_write (mtd, flash_offset, buffer, wsz);
-			if (ret < 0) {
-				printf("MTD overwrite_pages write1 failure: off 0x%08llX ret %d\n",
-					flash_offset, ret);
-				goto err;
+			if(wsz > 0) {
+				ret = mtd_write (mtd, flash_offset, buffer, wsz);
+				if (ret < 0) {
+					printf("MTD overwrite_pages write1 failure: off 0x%08llX ret %d\n",
+						flash_offset, ret);
+					goto err;
+				}
 			}
 
 			memcpy(page, buffer+wsz, sz-wsz);

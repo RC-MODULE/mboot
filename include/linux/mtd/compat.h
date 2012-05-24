@@ -42,7 +42,7 @@
 
 #ifndef BUG
 #define BUG() do { \
-	printf("U-Boot BUG at %s:%d!\n", __FILE__, __LINE__); \
+	printf("MBoot BUG at %s:%d!\n", __FILE__, __LINE__); \
 } while (0)
 
 #define BUG_ON(condition) do { if (condition) BUG(); } while(0)

@@ -29,7 +29,7 @@
 
 #include "linux/mtd/compat.h"
 #include "linux/mtd/mtd.h"
-#include "linux/mtd/bbm.h"
+/*#include "linux/mtd/bbm.h"*/
 
 
 struct mtd_info;

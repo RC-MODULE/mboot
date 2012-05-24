@@ -164,12 +164,14 @@
 /*
  * MNAND specific defines
  */
+#define CONFIG_MTD_PARTITIONS
 #define CONFIG_SYS_MAX_MTD_DEVICE 1
-#define CONFIG_SYS_MTD_BASE       0x2003f000
+#define CONFIG_MNAND_BASE       0x2003f000
+/*#define CONFIG_SYS_MTD_BASE       0x2003f000*/
 #define CONFIG_MTD_MNAND
 //Uncomment to use slower timings
 //#define CONFIG_MTD_MNAND_SLOW
-#define CONFIG_CMD_MNAND
+//#define CONFIG_CMD_MNAND
 #define CONFIG_CMD_MTD
 #define CONFIG_GENERIC_MTD
 #define CONFIG_MNAND_TIMEOUT_MS   5000

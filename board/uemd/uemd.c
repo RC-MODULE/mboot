@@ -24,6 +24,7 @@
 #include <common.h>
 #include <netdev.h>
 #include <mtd.h>
+#include <mtdpart.h>
 #include <mnand.h>
 #include <timestamp.h>
 #include <version.h>
@@ -48,18 +49,6 @@ int board_eth_init(bd_t *bis)
 	ret = greth_initialize(bis);
 #endif
 	return ret;
-}
-
-int board_mtd_init(struct mtd_info *mtd, ulong *base_addr, int cnt)
-{
-	int ret = -1;
-	int num = 0;
-#if defined(CONFIG_MTD_MNAND)
-	ret = mnand_init(&mtd[0], base_addr[0]); 
-	if(ret < 0) return ret;
-	num++;
-#endif
-	return num;
 }
 
 void hang (void)
@@ -99,15 +88,17 @@ static int uemd_env_read(char* buf, size_t *len, void *priv)
 {
 	struct mtd_info *mtd = (struct mtd_info*) priv;
 	int ret;
-	
+
+	if(mtd == NULL)
+		return -EINVAL;
+
 	*len = MIN(*len,CONFIG_MNAND_ENV_SIZE);
 
-	ret = mtd_read_pages(mtd,
-		CONFIG_MNAND_ENV_OFF, CONFIG_MNAND_ENV_OFF + CONFIG_MNAND_ENV_SIZE,
-		(u8*)buf, *len);
+	ret = mtd_read_pages(mtd, 0, mtd->size, (u8*)buf, *len);
 	if(ret < 0) {
 		*len = 0;
-		uemd_error("Failed to read env from MTD: ret %d", ret);
+		uemd_error("Failed to read env from MTD: name %s ret %d",
+			mtd->name, ret);
 		return ret;
 	}
 	return 0;
@@ -118,19 +109,16 @@ static int uemd_env_write(const char* buf, size_t len, void *priv)
 	struct mtd_info *mtd = (struct mtd_info*) priv;
 	int ret;
 
-	ret = mtd_erase(mtd, CONFIG_MNAND_ENV_OFF, CONFIG_MNAND_ENV_SIZE, 1);
+	if(mtd == NULL)
+		return -EINVAL;
+
+	ret = mtd_overwrite_pages(mtd, 0, mtd->size, (u8*)buf, len);
 	if(ret < 0) {
-		uemd_error("Failed to erase env section of MTD: ret %d", ret);
+		uemd_error("Failed to overwrite env section of MTD: name %s ret %d",
+			mtd->name, ret);
 		return ret;
 	}
 
-	ret = mtd_write_pages(mtd,
-		CONFIG_MNAND_ENV_OFF, CONFIG_MNAND_ENV_OFF + CONFIG_MNAND_ENV_SIZE,
-		(u8*)buf, mtd_full_pages(mtd,len));
-	if(ret < 0) {
-		uemd_error("Failed to write env to MTD: ret %d", ret);
-		return ret;
-	}
 	return 0;
 }
 
@@ -142,12 +130,12 @@ static struct env_ops g_uemd_env_ops = {
 void uemd_init(struct uemd_otp *otp)
 {
 	DECLARE_GLOBAL_DATA_PTR;
-	struct mtd_info *mtd;
 	int ret;
 	int netn;
 
 	uemd_timer_init();
 
+	/* SERIAL */
 	ret = uemd_console_init();
 	if(ret < 0)
 		goto err;
@@ -156,21 +144,16 @@ void uemd_init(struct uemd_otp *otp)
 	printf("OTP info: boot_source %u jtag_stop %u words_len %u\n",
 		otp->source, otp->jtag_stop, otp->words_length);
 
-	/* After that it is safe to use gd */
+	/* Global data (U-boot legacy) */
 	ret = uemd_gd_init();
-	if(ret != 0) {
-		uemd_error("GD init failed: ret %d", ret);
-		goto err;
-	}
+	uemd_check_zero(ret, goto err, "GD init failed");
 
 	printf("Hardcoded MachineID 0x%x (may be changed via env)\n", gd->bd->bi_arch_number);
 
 	ret = uemd_em_init_check(&gd->bd->bi_dram[0], CONFIG_NR_DRAM_BANKS);
-	if(ret != 0) {
-		uemd_error("SDRAM init failed: ret %d", ret);
-		goto err;
-	}
+	uemd_check_zero(ret, goto err, "SDRAM init failed");
 
+	/* MALLOC */
 	mem_malloc_init(CONFIG_SYS_MALLOC_ADDR, CONFIG_SYS_MALLOC_SIZE);
 
 	printf("Memory layout\n");
@@ -186,32 +169,39 @@ void uemd_init(struct uemd_otp *otp)
 	printf("\t0x%08X  bd\n", CONFIG_SYS_BD_ADDR);
 	printf("\t0x%08X  gd\n", CONFIG_SYS_GD_ADDR);
 
-#ifdef CONFIG_GENERIC_MTD
-	ret = mtd_init();
-	if(ret < 0) {
-		uemd_error("Failed to register MTD device: ret %d", ret);
-		goto err;
+	/* MTD/MNAND */
+	struct mtd_info mtd_mnand = MTD_INITIALISER("mtd0");
+
+	ret = mnand_init(&mtd_mnand);
+	uemd_check_zero(ret, goto err, "MNAND init failed");
+
+	ret = mtd_add(&mtd_mnand);
+	uemd_check_zero(ret, goto err, "MTD add failed");
+
+	struct mtd_part mtd_parts[] = {
+		MTDPART_INITIALIZER("mboot",  0,                  0x40000),
+		MTDPART_INITIALIZER("env",    MTDPART_OFS_NXTBLK, 0x40000),
+		MTDPART_INITIALIZER("kernel", MTDPART_OFS_NXTBLK, 0x800000),
+		MTDPART_INITIALIZER("user",   MTDPART_OFS_NXTBLK, MTDPART_SIZ_FULL),
+		MTDPART_NULL,
+	};
+
+	ret = mtdparts_add(&mtd_mnand, mtd_parts);
+	uemd_check_zero(ret, goto err, "MTD failed to register parts");
+
+	struct mtd_part *part = NULL;
+	struct mtd_part *part_env = NULL;
+	for_all_mtdparts(part) {
+		if(!part_env && 0 == strcmp(part->name, "env")) part_env = part;
+		printf("MTD Partition: name %10s off 0x%08llX size 0x%08llX\n",
+			part->name, part->offset, part->mtd.size);
 	}
 
-	printf("NAND layout\n");
-	printf("\t0x%08llX  u-boot\n", CONFIG_MNAND_UBOOT_OFF);
-	printf("\t0x%08llX  env\n",    CONFIG_MNAND_ENV_OFF);
-	printf("\t0x%08llX  kernel\n", CONFIG_MNAND_KERNEL_OFF);
-	printf("\t0x%08llX  userdata\n",   CONFIG_MNAND_USERDATA_OFF);
-#endif
+	/* ENV */
+	ret = env_init(&g_uemd_env_ops, part_env);
+	uemd_check_zero(ret, goto err, "Env init failed");
 
-	mtd = mtd_by_index(0);
-	if(mtd == NULL) {
-		uemd_error("Failed to get MTD dev to read env from");
-		goto err;
-	}
-
-	ret = env_init(&g_uemd_env_ops, mtd);
-	if(ret < 0) {
-		uemd_error("Failed to initialise env: ret %d", ret);
-		goto err;
-	}
-
+	/* ETH */
 #ifdef CONFIG_NET_MULTI
 	netn = eth_initialize(gd->bd);
 	if(netn <= 0) {
@@ -219,9 +209,7 @@ void uemd_init(struct uemd_otp *otp)
 	}
 #endif
 
-	for (;;) {
-		main_loop ();
-	}
+	main_loop();
 
 err:
 	uemd_hang();

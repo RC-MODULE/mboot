@@ -52,6 +52,14 @@ void uemd_timer_init(void);
 
 int uemd_console_init(void);
 
+#define uemd_check(x, err, fmt, args...) do { \
+		if((x)) { printf(fmt, ##args); err ; } \
+	}while(0)
+
+#define uemd_check_zero(ret, err, fmt, args...) do { \
+		if((ret) != 0) { printf(fmt ": ret %d\n" , ##args, ret); err ; } \
+	}while(0)
+
 #define uemd_barrier() __asm__ __volatile__("": : :"memory")
 
 #define uemd_error(fmt, args...) do {	\

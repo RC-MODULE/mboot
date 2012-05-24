@@ -60,14 +60,12 @@ out:
 static int do_fwupgrade(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	struct mtd_info *mtd;
-	int idx;
 	char file[MAXPATH];
 	int ret;
 
-	idx = simple_strtoul(getenv("bootdevice"), NULL, 0);
-	mtd = mtd_by_index(idx);
+	mtd = mtd_get_default();
 	if(mtd == NULL) {
-		printf("FWU mtd device %d not available\n", idx);
+		printf("FWU default mtd device not available\n");
 		return -1;
 	}
 	

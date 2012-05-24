@@ -47,6 +47,12 @@ int	setenv(const char *n, const char *v);
 
 char *getenv(const char *);
 
+static inline const char *getenv_def(const char *name, const char *def)
+{
+	const char *val = getenv(name);
+	return val != NULL ? val : def;
+}
+
 int	saveenv(void);
 
 

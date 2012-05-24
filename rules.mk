@@ -21,7 +21,7 @@ PROG = mboot-$(BOARD_NAME)
 all: $(PROG).bin
 
 clean:
-	-@rm mboot* >/dev/null
+	-@rm mboot* tags >/dev/null
 	-@find -name '*\.o' -exec rm '{}' ';'
 	-@find -name '*\.t' -exec rm '{}' ';'
 	-@find -name '*\.d' -exec rm '{}' ';'
@@ -48,7 +48,7 @@ CPP = $(CROSS_COMPILE)cpp
 LD = $(CROSS_COMPILE)ld
 AR = $(CROSS_COMPILE)ar
 OBJCOPY = $(CROSS_COMPILE)objcopy
-OBJDUMP = $(CROSS_COMPILE)objdump 
+OBJDUMP = $(CROSS_COMPILE)objdump
 
 CTAGS = ctags
 
@@ -79,29 +79,23 @@ LDFLAGS = \
 	-lgcc
 
 DEPS = $(COBJS-y:.o=.d)
-TAGS = $(COBJS-y:.o=.t)
 
 rules.mk: $(DEPS)
 
 %.d: %.S
 	$(CC) -M $(CFLAGS) $(CPPFLAGS) $< \
-		| sed 's@\(.*\)\.o[ :]*@\1.o $@ : @g' > $@; \
+		| sed 's@\(.*\)\.o[ :]*@$(@:.d=.o) $@ : @g' > $@; \
         [ -s $@ ] || rm -f $@
 
 %.d: %.c
 	$(CC) -M $(CFLAGS) $(CPPFLAGS) $< \
-		| sed 's@\(.*\)\.o[ :]*@\1.o $@ : @g' > $@; \
+		| sed 's@\(.*\)\.o[ :]*@$(@:.d=.o) $@ : @g' > $@; \
         [ -s $@ ] || rm -f $@
 
-%.t: %.c
-	$(CTAGS) -o tags --append=yes $<
+tags: $(DEPS)
+	cat $^ | sed 's/^.*://g' | sed 's/[\\]//g' | sed 's/ \+/\n/g' | sort -u | ctags -L -
 
-%.t: %.S
-	$(CTAGS) -o tags --append=yes $<
-
-tags: $(TAGS)
-
-include $(DEPS)
+-include $(DEPS)
 
 $(PROG): $(COBJS-y)
 	$(LD) -T $(BOARD_LDSCRIPT) -Ttext=$(BOARD_TEXT_BASE) --start-group $^ --end-group $(LDFLAGS) -o $@

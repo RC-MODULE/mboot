@@ -1268,7 +1268,7 @@ static int mnand_erase(struct mtd_info *mtd, struct erase_info *instr)
         instr->state = MTD_ERASE_DONE;
     }
     
-    mtd_erase_callback(instr);
+    /*mtd_erase_callback(instr);*/
    
     return 0;
 }
@@ -1396,7 +1396,7 @@ static int mnand_write_oob(struct mtd_info* mtd, loff_t to, struct mtd_oob_ops* 
 			oob = mnand_fill_oob(oob, ops);
 			if(!oob) {
 				err = -EINVAL;
-				printk(KERN_ERR "oob einval\n");
+				printk("MNAND oob einval\n");
 				break;    
 			}
 		}
@@ -1411,7 +1411,8 @@ static int mnand_write_oob(struct mtd_info* mtd, loff_t to, struct mtd_oob_ops* 
 
 
     if(err) {
-        printk(KERN_ERR "core write returned error at 0x%08lx\n", as32(to));
+        printk("MNAND core write returned error: off 0x%08lx err %d\n",
+			as32(to), err);
         return err;
     }
 
@@ -1573,9 +1574,10 @@ static int mnand_read(struct mtd_info* mtd, loff_t off, size_t len,
  *
  * Uses console, uses malloc
  */
-int mnand_init(struct mtd_info* mtd, unsigned long base) 
+int mnand_init(struct mtd_info* mtd) 
 {
     int ret;
+	uint32_t base = CONFIG_MNAND_BASE;
 
 	MARK();
 
@@ -1600,7 +1602,7 @@ int mnand_init(struct mtd_info* mtd, unsigned long base)
 
 	mtd->name = "mtd0";
     mtd->type = MTD_NANDFLASH;
-    mtd->flags = MTD_ROM;
+    mtd->flags = MTD_WRITEABLE;
     mtd->erase = mnand_erase;
     mtd->read = mnand_read;
     mtd->write = mnand_write;

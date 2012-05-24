@@ -26,7 +26,7 @@
 
 #include <mtd.h>
 
-int mnand_init(struct mtd_info* mtd, unsigned long base);
+int mnand_init(struct mtd_info* mtd);
 int mnand_reset(struct mtd_info* mtd);
 
 extern int g_mnand_ignore_ecc_in_spare;

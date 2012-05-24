@@ -36,11 +36,7 @@ int do_mnand(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 
 	ret = 0;
 	if(0 == strcmp(argv[1], "init")) {
-		unsigned long base = CONFIG_SYS_MTD_BASE;
-		if(argc >= 3) {
-			base = simple_strtoul(argv[2], NULL, 16);
-		}
-		ret = mnand_init(&mtd_info[0], base); 
+		ret = mnand_init(&mtd_info[0]); 
 	}
 	else if(0 == strcmp(argv[1], "verbose")) {
 		int verb = 1;
@@ -92,7 +88,7 @@ U_BOOT_CMD(
 	mnand,	3,	1,	do_mnand,
 	"configures mnand subsytem",
 	"\n"
-	"init [base_addr]\n"
+	"init\n"
 	"	  Initializes mnand subsystem\n"
 	"     base_addr: mnand registers base address\n"
 	"     Warning! There will be memory leaks if reinitializing. Beter use mnand reset.\n"

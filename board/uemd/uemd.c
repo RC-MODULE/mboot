@@ -89,8 +89,10 @@ static int uemd_env_read(char* buf, size_t *len, void *priv)
 	struct mtd_info *mtd = (struct mtd_info*) priv;
 	int ret;
 
-	if(mtd == NULL)
+	if(mtd == NULL) {
+		uemd_error("Environment partition is not defined");
 		return -EINVAL;
+	}
 
 	*len = MIN(*len,CONFIG_MNAND_ENV_SIZE);
 
@@ -109,8 +111,10 @@ static int uemd_env_write(const char* buf, size_t len, void *priv)
 	struct mtd_info *mtd = (struct mtd_info*) priv;
 	int ret;
 
-	if(mtd == NULL)
+	if(mtd == NULL) {
+		uemd_error("Environment partition is not defined");
 		return -EINVAL;
+	}
 
 	ret = mtd_overwrite_pages(mtd, 0, mtd->size, (u8*)buf, len);
 	if(ret < 0) {
@@ -126,6 +130,8 @@ static struct env_ops g_uemd_env_ops = {
 	.readenv = uemd_env_read,
 	.writeenv = uemd_env_write,
 };
+
+#define MTDENV "env"
 
 void uemd_init(struct uemd_otp *otp)
 {
@@ -180,7 +186,7 @@ void uemd_init(struct uemd_otp *otp)
 
 	struct mtd_part mtd_parts[] = {
 		MTDPART_INITIALIZER("mboot",  0,                  0x40000),
-		MTDPART_INITIALIZER("env",    MTDPART_OFS_NXTBLK, 0x40000),
+		MTDPART_INITIALIZER(MTDENV,   MTDPART_OFS_NXTBLK, 0x40000),
 		MTDPART_INITIALIZER("kernel", MTDPART_OFS_NXTBLK, 0x800000),
 		MTDPART_INITIALIZER("user",   MTDPART_OFS_NXTBLK, MTDPART_SIZ_FULL),
 		MTDPART_NULL,
@@ -192,9 +198,13 @@ void uemd_init(struct uemd_otp *otp)
 	struct mtd_part *part = NULL;
 	struct mtd_part *part_env = NULL;
 	for_all_mtdparts(part) {
-		if(!part_env && 0 == strcmp(part->name, "env")) part_env = part;
-		printf("MTD Partition: name %10s off 0x%08llX size 0x%08llX\n",
-			part->name, part->offset, part->mtd.size);
+		const char *envmsg = "";
+		if(!part_env && 0 == strcmp(part->name, MTDENV)) {
+			part_env = part;
+			envmsg = " (env)";
+		}
+		printf("MTD Partition: name %10s off 0x%08llX size 0x%08llX %s\n",
+			part->name, part->offset, part->mtd.size, envmsg);
 	}
 
 	/* ENV */

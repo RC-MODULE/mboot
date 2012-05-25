@@ -22,11 +22,15 @@ static int fwu_tftp_cb(uint32_t off, u8* buf, size_t len, void* priv)
 	return 0;
 }
 
-static int fwupgrade(struct mtd_info *mtd, char *file, loff_t from, loff_t size)
+static int fwupgrade(struct mtd_info *mtd, loff_t from, loff_t size)
 {
 	int ret;
 	struct fwu_tftp_ctx *ctx = &fwu_ctx;
 	u8 *page;
+	char file[MAXPATH];
+
+	// FIXME: manage bootfile
+	return -EINVAL;
 
 	page = malloc(mtd->writesize);
 	if(page == NULL) {
@@ -60,40 +64,28 @@ out:
 static int do_fwupgrade(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	struct mtd_info *mtd;
-	char file[MAXPATH];
 	int ret;
 
-	mtd = mtd_get_default();
+	switch(argc) {
+		case 1:
+			mtd = mtd_get_default();
+			break;
+		case 2:
+			mtd = mtd_by_name(argv[1]);
+			break;
+		default:
+			return cmd_usage(cmdtp);
+	}
+
 	if(mtd == NULL) {
-		printf("FWU default mtd device not available\n");
+		printf("FWU mtd device is not available\n");
 		return -1;
 	}
 	
-	switch(argc) {
-		//case 1:
-			//break;
-		case 2:
-			if(0 == strcmp(argv[1],"boot")) {
-				getenv_s("mbootfile", file, (CONFIG_BOOTDIR "/mboot.bin"));
-				ret = fwupgrade(mtd, file,
-					CONFIG_MNAND_UBOOT_OFF,
-					CONFIG_MNAND_UBOOT_SIZE);
-			}
-			else if(0 == strcmp(argv[1],"kernel")) {
-				getenv_s("bootfile", file, CONFIG_BOOTFILE);
-				ret = fwupgrade(mtd, file,
-					CONFIG_MNAND_KERNEL_OFF,
-					CONFIG_MNAND_KERNEL_SIZE);
-			}
-			else {
-				return cmd_usage(cmdtp);
-			}
-			//else if(0 == strcmp(argv[1],"fs")) {
-			//}
-			break;
-
-		default:
-			return cmd_usage(cmdtp);
+	ret = fwupgrade(mtd, 0, mtd->size);
+	if(ret != 0) {
+		printf("FWU upgrade failed: ret %d\n", ret);
+		return -1;
 	}
 
 	return ret;
@@ -158,7 +150,11 @@ static int do_fwupgrade(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 
 U_BOOT_CMD(
 	fwupgrade,	2,	0,	do_fwupgrade,
-	"Perform a system upgrade",
-	""
+	"Firmware upgrade via TFTP",
+	"\n"
+	"fwupgrade - upgrades current mtd device \n"
+	"fwupgrade MTD - upgrades mtd device MTD (can use a partition)\n"
+	" NOTE: TFTP file name is generated as follows:\n"
+	"       \"dirname($bootfile)/name_of(MTD)\"\n"
 );
 

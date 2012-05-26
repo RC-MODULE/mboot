@@ -163,8 +163,7 @@ U_BOOT_CMD(
 	fwupgrade,	2,	0,	do_fwupgrade,
 	"Firmware upgrade via TFTP",
 	"\n"
-	"fwupgrade - upgrades current mtd device \n"
-	"fwupgrade MTD - upgrades mtd device MTD (can use a partition)\n"
+	"fwupgrade [mtd] - rewrites mtd device using TFTP\n"
 	"  TFTP file names by partition:\n"
 	"  boot ..... dir($(bootfile))/mboot.img\n" 
 	"  kernel ... dir($(bootfile))/uImage\n" 

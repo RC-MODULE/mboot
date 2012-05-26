@@ -250,34 +250,37 @@ netboot_common (struct NetTask *task, cmd_tbl_t *cmdtp, int argc, char * const a
 int do_ping (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	struct NetTask task;
+	const char *ping;
 
 	switch(argc) {
 		case 1:
-			NetPingIP = string_to_ip(getenv("serverip"));
+			ping = getenv("serverip");
+			break;
 		case 2:
-			NetPingIP = string_to_ip(argv[1]);
+			ping = argv[1];
 			break;
 		default:
 			return cmd_usage(cmdtp);
 	}
+
+	NetPingIP = string_to_ip(ping);
 	if (NetPingIP == 0)
 		return cmd_usage(cmdtp);
 
 	net_init_task_args(&task, PING, argc, argv);
 	if (NetLoop(&task) < 0) {
-		printf("ping failed; host %s is not alive\n", argv[1]);
+		printf("PING host %s is not alive\n", ping);
 		return 1;
 	}
 
-	printf("ping host %s is alive\n", argv[1]);
-
+	printf("PING host %s OK\n", ping);
 	return 0;
 }
 
 U_BOOT_CMD(
 	ping,	2,	1,	do_ping,
 	"send ICMP ECHO_REQUEST to network host",
-	"\nping [address] - pings address (default - serverip)"
+	"[address] - pings address (use serverip by default)"
 );
 #endif
 

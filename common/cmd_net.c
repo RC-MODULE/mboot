@@ -251,10 +251,15 @@ int do_ping (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	struct NetTask task;
 
-	if (argc < 2)
-		return -1;
-
-	NetPingIP = string_to_ip(argv[1]);
+	switch(argc) {
+		case 1:
+			NetPingIP = string_to_ip(getenv("serverip"));
+		case 2:
+			NetPingIP = string_to_ip(argv[1]);
+			break;
+		default:
+			return cmd_usage(cmdtp);
+	}
 	if (NetPingIP == 0)
 		return cmd_usage(cmdtp);
 
@@ -272,7 +277,7 @@ int do_ping (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 U_BOOT_CMD(
 	ping,	2,	1,	do_ping,
 	"send ICMP ECHO_REQUEST to network host",
-	"pingAddress"
+	"\nping [address] - pings address (default - serverip)"
 );
 #endif
 

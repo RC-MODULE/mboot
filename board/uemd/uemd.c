@@ -94,7 +94,7 @@ static int uemd_env_read(char* buf, size_t *len, void *priv)
 		return -EINVAL;
 	}
 
-	*len = MIN(*len,CONFIG_MNAND_ENV_SIZE);
+	*len = MIN(*len, mtd->size);
 
 	ret = mtd_read_pages(mtd, 0, mtd->size, (u8*)buf, *len);
 	if(ret < 0) {
@@ -132,6 +132,7 @@ static struct env_ops g_uemd_env_ops = {
 };
 
 #define MTDENV "env"
+#define MTDBOOT CONFIG_MTD_BOOTNAME
 
 void uemd_init(struct uemd_otp *otp)
 {
@@ -176,7 +177,7 @@ void uemd_init(struct uemd_otp *otp)
 	printf("\t0x%08X  gd\n", CONFIG_SYS_GD_ADDR);
 
 	/* MTD/MNAND */
-	struct mtd_info mtd_mnand = MTD_INITIALISER("mtd0");
+	struct mtd_info mtd_mnand = MTD_INITIALISER("mnand");
 
 	ret = mnand_init(&mtd_mnand);
 	uemd_check_zero(ret, goto err, "MNAND init failed");
@@ -185,9 +186,9 @@ void uemd_init(struct uemd_otp *otp)
 	uemd_check_zero(ret, goto err, "MTD add failed");
 
 	struct mtd_part mtd_parts[] = {
-		MTDPART_INITIALIZER("mboot",  0,                  0x40000),
+		MTDPART_INITIALIZER("boot",   0,                  0x40000),
 		MTDPART_INITIALIZER(MTDENV,   MTDPART_OFS_NXTBLK, 0x40000),
-		MTDPART_INITIALIZER("kernel", MTDPART_OFS_NXTBLK, 0x800000),
+		MTDPART_INITIALIZER(MTDBOOT,  MTDPART_OFS_NXTBLK, 0x800000),
 		MTDPART_INITIALIZER("user",   MTDPART_OFS_NXTBLK, MTDPART_SIZ_FULL),
 		MTDPART_NULL,
 	};

@@ -219,7 +219,6 @@ void	hang		(void) __attribute__ ((noreturn));
 
 /* */
 phys_size_t initdram (int);
-int	display_options (void);
 void print_size(unsigned long long, const char *);
 void print_buffer (ulong addr, void* data, uint width, uint count, uint linelen);
 

@@ -62,9 +62,6 @@ static void uemd_hang(void)
 	for (;;);
 }
 
-const char version_string[] =
-	U_BOOT_VERSION" (" U_BOOT_DATE " - " U_BOOT_TIME ")";
-
 static int uemd_gd_init(void)
 {
 	DECLARE_GLOBAL_DATA_PTR;
@@ -147,7 +144,8 @@ void uemd_init(struct uemd_otp *otp)
 	if(ret < 0)
 		goto err;
 
-	printf("U-boot (UEMD mode): %s\n", version_string);
+	printf("MBOOT (UEMD mode): Version %s (Built %s)\n",
+		MBOOT_VERSION, MBOOT_DATE);
 	printf("OTP info: boot_source %u jtag_stop %u words_len %u\n",
 		otp->source, otp->jtag_stop, otp->words_length);
 

@@ -21,7 +21,7 @@ PROG = mboot-$(BOARD_NAME)
 all: $(PROG).bin
 
 clean:
-	-@rm mboot* tags >/dev/null
+	-@rm mboot* >/dev/null
 	-@find -name '*\.o' -exec rm '{}' ';'
 	-@find -name '*\.t' -exec rm '{}' ';'
 	-@find -name '*\.d' -exec rm '{}' ';'
@@ -55,6 +55,8 @@ CTAGS = ctags
 CPPFLAGS = \
 	$(BOARD_CPPFLAGS) \
 	-DTEXT_BASE=$(BOARD_TEXT_BASE) \
+	-DMBOOT_VERSION="\"mboot$(shell ./tools/setlocalversion)\"" \
+	-DMBOOT_DATE="\"$(shell LANG=C date)\"" \
 	-D__KERNEL__ \
 	-nostdinc \
 	-include $(BOARD_CONFIG) \

@@ -26,18 +26,6 @@
 #include <linux/ctype.h>
 #include <asm/io.h>
 
-int display_options (void)
-{
-	extern char version_string[];
-
-#if defined(BUILD_TAG)
-	printf ("\n\n%s, Build: %s\n\n", version_string, BUILD_TAG);
-#else
-	printf ("\n\n%s\n\n", version_string);
-#endif
-	return 0;
-}
-
 /*
  * print sizes as "xxx KiB", "xxx.y KiB", "xxx MiB", "xxx.y MiB",
  * xxx GiB, xxx.y GiB, etc as needed; allow for optional trailing string

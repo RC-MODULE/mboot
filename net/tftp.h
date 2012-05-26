@@ -14,7 +14,7 @@
  */
 
 /* tftp.c */
-extern void	TftpStart (void);	/* Begin TFTP get */
+void TftpStart (struct NetTask *task); 
 
 /**********************************************************************/
 

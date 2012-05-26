@@ -633,13 +633,6 @@ static inline char * strncpy_s(char * dest,const char *src,size_t count)
 /* common/cmd_nvedit2.c */
 #include <environment.h>
 
-/* lib/net_utils.c */
-#include <net.h>
-static inline IPaddr_t getenv_IPaddr (char *var)
-{
-	return (string_to_ip(getenv(var)));
-}
-
 static inline void getenv_ul(const char *name, ulong *res, ulong def)
 {
 	char *val = getenv(name);
@@ -667,16 +660,23 @@ static inline void getenv_s(const char *name, char *pval, const char* def)
 
 static inline void setenv_ul(const char *name, const char* fmt, ulong val)
 {
-	char buf[33];
+	char buf[12];
 	sprintf(buf, fmt, val);
 	setenv(name, buf);
 }
 
 static inline void setenv_ull(const char *name, const char* fmt, loff_t val)
 {
-	char buf[65];
+	char buf[24];
 	sprintf(buf, fmt, val);
 	setenv(name, buf);
+}
+
+/* lib/net_utils.c */
+#include <net.h>
+static inline IPaddr_t getenv_IPaddr (char *var)
+{
+	return (string_to_ip(getenv(var)));
 }
 
 /* lib/qsort.c */

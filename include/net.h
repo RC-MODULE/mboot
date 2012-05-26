@@ -54,7 +54,6 @@
 
 #include <asm/byteorder.h>	/* for nton* / ntoh* stuff */
 
-
 /*
  *	The number of receive packet buffers, and the required packet buffer
  *	alignment in memory.
@@ -364,9 +363,6 @@ typedef enum { BOOTP, RARP, ARP, TFTP, DHCP, PING, DNS, NFS, CDP, NETCONS, SNTP 
 /* from net/net.c */
 extern char	BootFile[128];			/* Boot File name		*/
 
-extern int (*TftpCallback)(uint32_t off, u8* buf, size_t len, void* ctx);
-extern void *TftpCtx;
-
 #if defined(CONFIG_CMD_DNS)
 extern char *NetDNSResolve;		/* The host to resolve  */
 extern char *NetDNSenvvar;		/* the env var to put the ip into */
@@ -387,8 +383,33 @@ extern IPaddr_t	NetNtpServerIP;			/* the ip address to NTP	*/
 extern int NetTimeOffset;			/* offset time from UTC		*/
 #endif
 
+struct NetTaskTftp {
+	int (*data_cb)(uint32_t off, u8* buf, size_t len, void* ctx);
+	void *data_ctx;
+};
+
+struct NetTaskBootp {
+	struct NetTaskTftp next_tftp;
+};
+
+struct NetTask {
+	proto_t proto;
+	char bootfile[MAXPATH];
+	ulong loadaddr;
+
+	union NetParams {
+		struct NetTaskTftp tftp;
+		struct NetTaskBootp bootp;
+	} u;
+
+	ulong out_filesize;
+};
+
+void net_init_task_def(struct NetTask *task, proto_t p);
+void net_init_task_args(struct NetTask *task, proto_t p, int argc, char * const argv[]);
+
 /* Initialize the network adapter */
-extern int	NetLoop(proto_t);
+extern int	NetLoop(struct NetTask *task);
 
 /* Shutdown adapters and cleanup */
 extern void	NetStop(void);
@@ -517,7 +538,7 @@ static inline int is_valid_ether_addr(const u8 *addr)
 extern void	ip_to_string (IPaddr_t x, char *s);
 
 /* Convert a string to ip address */
-extern IPaddr_t string_to_ip(char *s);
+extern IPaddr_t string_to_ip(const char *s);
 
 /* Convert a VLAN id to a string */
 extern void	VLAN_to_string (ushort x, char *s);

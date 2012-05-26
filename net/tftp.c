@@ -46,8 +46,8 @@ ulong TftpRRQTimeoutMSecs = TIMEOUT;
 int TftpRRQTimeoutCountMax = TIMEOUT_COUNT;
 
 
-int (*TftpCallback)(uint32_t off, u8* buf, size_t len, void* ctx);
-void *TftpCtx = NULL;
+static int (*TftpCallback)(uint32_t off, u8* buf, size_t len, void* ctx);
+static void *TftpCtx = NULL;
 
 enum {
 	TFTP_ERR_UNDEFINED           = 0,
@@ -414,8 +414,6 @@ TftpHandler (uchar * pkt, unsigned dest, unsigned src, unsigned len)
 			puts ("\nTFTP unable to store block\n");
 			eth_halt();
 			NetState = NETLOOP_FAIL;
-			TftpCallback = NULL;
-			TftpCtx = NULL;
 			break;
 		}
 
@@ -523,14 +521,15 @@ TftpTimeout (void)
 }
 
 
-void
-TftpStart (void)
+void TftpStart (struct NetTask *task)
 {
 	char *ep;             /* Environment pointer */
-	char BootFile[MAXPATH];
-		
-	getenv_ul("loadaddr", &load_addr, CONFIG_LOADADDR);
-	getenv_s("bootfile", BootFile, CONFIG_BOOTFILE);
+	char *BootFile;
+
+	BootFile = task->bootfile;
+	load_addr = task->loadaddr;
+	TftpCallback = task->u.tftp.data_cb;
+	TftpCtx = task->u.tftp.data_ctx;
 
 	/*
 	 * Allow the user to choose TFTP blocksize and timeout.
@@ -549,21 +548,21 @@ TftpStart (void)
 		TftpTimeoutMSecs = 1000;
 	}
 
-	debug("TFTP blocksize = %i, timeout = %ld ms\n",
+	debug("TFTP params: blocksize %i timeout_ms %ld\n",
 		TftpBlkSizeOption, TftpTimeoutMSecs);
 
 	TftpServerIP = NetServerIP;
 	if (BootFile[0] == '\0') {
-		sprintf(default_filename, "%02lX%02lX%02lX%02lX.img",
-			NetOurIP & 0xFF,
-			(NetOurIP >>  8) & 0xFF,
-			(NetOurIP >> 16) & 0xFF,
-			(NetOurIP >> 24) & 0xFF	);
+			sprintf(default_filename, "%02lX%02lX%02lX%02lX.img",
+				NetOurIP & 0xFF,
+				(NetOurIP >>  8) & 0xFF,
+				(NetOurIP >> 16) & 0xFF,
+				(NetOurIP >> 24) & 0xFF	);
 
-		strncpy(tftp_filename, default_filename, MAX_LEN);
+			strncpy(tftp_filename, default_filename, MAX_LEN);
 		tftp_filename[MAX_LEN-1] = 0;
 
-		printf ("*** Warning: no boot file name; using '%s'\n",
+		printf ("TFTP Warning: no boot file name; using '%s'\n",
 			tftp_filename);
 	} else {
 		char *p = strchr (BootFile, ':');
@@ -579,10 +578,10 @@ TftpStart (void)
 	}
 
 #if defined(CONFIG_NET_MULTI)
-	printf ("Using %s device\n", eth_get_name());
+	printf ("TFTP Using %s device\n", eth_get_name());
 #endif
-	printf("TFTP from server %pI4"
-		"; our IP address is %pI4", &TftpServerIP, &NetOurIP);
+	printf("TFTP params: server %pI4 our_ip %pI4",
+		&TftpServerIP, &NetOurIP);
 
 	/* Check if we need to send across this subnet */
 	if (NetOurGatewayIP && NetOurSubnetMask) {
@@ -590,20 +589,17 @@ TftpStart (void)
 	    IPaddr_t ServerNet	= TftpServerIP & NetOurSubnetMask;
 
 	    if (OurNet != ServerNet)
-		printf("; sending through gateway %pI4", &NetOurGatewayIP);
+		printf(" gateway %pI4", &NetOurGatewayIP);
 	}
 	putc ('\n');
 
-	printf ("TFTP Filename '%s'.", tftp_filename);
+	printf ("TFTP params: filename '%s' load_address 0x%lX",
+		tftp_filename, load_addr);
 
 	if (NetBootFileSize) {
-		printf (" Size is 0x%X Bytes = ", NetBootFileSize<<9);
-		print_size (NetBootFileSize<<9, "");
+		printf (" filesize_blocks 0x%X", NetBootFileSize);
 	}
-
 	putc ('\n');
-
-	printf ("TFTP Load address: 0x%lX\n", load_addr);
 
 	puts ("TFTP Loading: *\b");
 

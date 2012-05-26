@@ -306,7 +306,7 @@ NetInitLoop(proto_t protocol)
  */
 
 int
-NetLoop(proto_t protocol)
+NetLoop(struct NetTask *task)
 {
 	bd_t *bd = gd->bd;
 
@@ -365,9 +365,9 @@ restart:
 	 *	here on, this code is a state machine driven by received
 	 *	packets and timer events.
 	 */
-	NetInitLoop(protocol);
+	NetInitLoop(task->proto);
 
-	switch (net_check_prereq (protocol)) {
+	switch (net_check_prereq (task->proto)) {
 	case 1:
 		/* network not configured */
 		eth_halt();
@@ -383,10 +383,10 @@ restart:
 #ifdef CONFIG_NET_MULTI
 		NetDevExists = 1;
 #endif
-		switch (protocol) {
+		switch (task->proto) {
 		case TFTP:
 			/* always use ARP to get server ethernet address */
-			TftpStart();
+			TftpStart(task);
 			break;
 
 #if defined(CONFIG_CMD_DHCP)
@@ -398,6 +398,7 @@ restart:
 #endif
 
 		case BOOTP:
+			BootpTask = task;
 			BootpTry = 0;
 			NetOurIP = 0;
 			BootpRequest ();
@@ -467,12 +468,7 @@ restart:
 	 */
 	for (;;) {
 		WATCHDOG_RESET();
-#ifdef CONFIG_SHOW_ACTIVITY
-		{
-			extern void show_activity(int arg);
-			show_activity(1);
-		}
-#endif
+
 		/*
 		 *	Check the ethernet for a new packet.  The ethernet
 		 *	receive routine will process it.
@@ -484,7 +480,7 @@ restart:
 		 */
 		if (ctrlc()) {
 			eth_halt();
-			puts ("\nAbort\n");
+			puts ("NET Aborted by user\n");
 			return (-1);
 		}
 
@@ -527,18 +523,7 @@ restart:
 
 		case NETLOOP_SUCCESS:
 			if (NetBootFileXferSize > 0) {
-				char buf[20];
-				unsigned long load_addr;
-
-				printf("Bytes transferred = %ld (0x%lx hex)\n",
-					NetBootFileXferSize,
-					NetBootFileXferSize);
-				sprintf(buf, "0x%lX", NetBootFileXferSize);
-				setenv("filesize", buf);
-
-				getenv_ul("loadaddr", &load_addr, CONFIG_LOADADDR);
-				sprintf(buf, "0x%lX", (unsigned long)load_addr);
-				setenv("fileaddr", buf);
+				task->out_filesize = NetBootFileXferSize;
 			}
 			eth_halt();
 			return NetBootFileXferSize;
@@ -1460,14 +1445,6 @@ NetReceive(volatile uchar * inpkt, int len)
 			if (!NetArpWaitPacketIP || !NetArpWaitPacketMAC)
 				break;
 
-#ifdef CONFIG_KEEP_SERVERADDR
-			if (NetServerIP == NetArpWaitPacketIP) {
-				char buf[20];
-				sprintf(buf, "%pM", arp->ar_data);
-				setenv("serveraddr", buf);
-			}
-#endif
-
 			debug("Got ARP REPLY, set server/gtwy eth addr (%pM)\n",
 				arp->ar_data);
 
@@ -1935,3 +1912,8 @@ ushort getenv_VLAN(char *var)
 {
 	return (string_to_VLAN(getenv(var)));
 }
+
+#ifdef CONFIG_KEEP_SERVERADDR
+#error Not in MBOOT
+#endif
+

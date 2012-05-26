@@ -28,13 +28,54 @@
 #include <command.h>
 #include <net.h>
 
+void net_init_task_def(struct NetTask *task, proto_t p)
+{
+	memset(task, 0, sizeof(struct NetTask));
+	task->proto = p;
+
+	getenv_ul("loadaddr", &task->loadaddr, CONFIG_LOADADDR);
+	getenv_s("bootfile", &task->bootfile[0], CONFIG_BOOTFILE);
+}
+
+void net_init_task_args(struct NetTask *task, proto_t p, int argc, char * const argv[])
+{
+	net_init_task_def(task, p);
+
+	switch (argc) {
+		case 2: {
+			ulong addr;
+			char* end;
+			/* Only one arg accept two forms: Just load address, or just boot file
+			 * name. */
+			addr = simple_strtoul(argv[1], &end, 16);
+			if (end == (argv[1] + strlen(argv[1]))) {
+				task->loadaddr = addr;
+			}
+			else {
+				strncpy_s(task->bootfile, argv[1], MAXPATH);
+			}
+			break;
+		}
+
+		case 3:
+			task->loadaddr = simple_strtoul(argv[1], NULL, 16);
+			strncpy_s(task->bootfile, argv[2], MAXPATH);
+			break;
+
+		default:
+			break;
+	}
+}
+
 extern int do_bootm (cmd_tbl_t *, int, int, char * const []);
 
-static int netboot_common (proto_t, cmd_tbl_t *, int , char * const []);
+static int netboot_common (struct NetTask *task, cmd_tbl_t *, int , char * const []);
 
 int do_bootp (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	return netboot_common (BOOTP, cmdtp, argc, argv);
+	struct NetTask task;
+	net_init_task_args(&task, BOOTP, argc, argv);
+	return netboot_common (&task, cmdtp, argc, argv);
 }
 
 U_BOOT_CMD(
@@ -45,7 +86,9 @@ U_BOOT_CMD(
 
 int do_tftpb (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	return netboot_common (TFTP, cmdtp, argc, argv);
+	struct NetTask task;
+	net_init_task_args(&task, TFTP, argc, argv);
+	return netboot_common (&task, cmdtp, argc, argv);
 }
 
 U_BOOT_CMD(
@@ -57,7 +100,9 @@ U_BOOT_CMD(
 #ifdef CONFIG_CMD_RARP
 int do_rarpb (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	return netboot_common (RARP, cmdtp, argc, argv);
+	struct NetTask task;
+	net_init_task_args(&task, RARP, argc, argv);
+	return netboot_common (&task, cmdtp, argc, argv);
 }
 
 U_BOOT_CMD(
@@ -70,7 +115,9 @@ U_BOOT_CMD(
 #if defined(CONFIG_CMD_DHCP)
 int do_dhcp (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	return netboot_common(DHCP, cmdtp, argc, argv);
+	struct NetTask task;
+	net_init_task_args(&task, DHCP, argc, argv);
+	return netboot_common (&task, cmdtp, argc, argv);
 }
 
 U_BOOT_CMD(
@@ -83,7 +130,9 @@ U_BOOT_CMD(
 #if defined(CONFIG_CMD_NFS)
 int do_nfs (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
-	return netboot_common(NFS, cmdtp, argc, argv);
+	struct NetTask task;
+	net_init_task_args(&task, NFS, argc, argv);
+	return netboot_common (&task, cmdtp, argc, argv);
 }
 
 U_BOOT_CMD(
@@ -93,9 +142,12 @@ U_BOOT_CMD(
 );
 #endif
 
-static void netboot_update_env (void)
+static void netboot_update_env (struct NetTask *task)
 {
 	char tmp[22];
+
+	setenv_ul("loadaddr", "0x%08lX", task->loadaddr);
+	setenv("bootfile", task->bootfile);
 
 	if (NetOurGatewayIP) {
 		ip_to_string (NetOurGatewayIP, tmp);
@@ -155,83 +207,49 @@ static void netboot_update_env (void)
 static ulong load_addr;
 
 static int
-netboot_common (proto_t proto, cmd_tbl_t *cmdtp, int argc, char * const argv[])
+netboot_common (struct NetTask *task, cmd_tbl_t *cmdtp, int argc, char * const argv[])
 {
-	char *s;
-	char *end;
-	int   rcode = 0;
-	int   size;
-	ulong addr;
-	char BootFile[MAXPATH];
+	const char *s;
+	int size;
+	int ret;
 
-	/* pre-set load_addr */
-	getenv_ul("loadaddr", &load_addr, CONFIG_LOADADDR);
-	getenv_s("bootfile", BootFile, CONFIG_BOOTFILE);
-
-	switch (argc) {
-	case 1:
-		break;
-
-	case 2:	/*
-		 * Only one arg - accept two forms:
-		 * Just load address, or just boot file name. The latter
-		 * form must be written in a format which can not be
-		 * mis-interpreted as a valid number.
-		 */
-		addr = simple_strtoul(argv[1], &end, 16);
-		if (end == (argv[1] + strlen(argv[1]))) {
-			load_addr = addr;
-		}
-		else {
-			strncpy_s(BootFile,argv[1],MAXPATH);
-		}
-		break;
-
-	case 3:
-		load_addr = simple_strtoul(argv[1], NULL, 16);
-		strncpy_s(BootFile,argv[2],MAXPATH);
-		break;
-
-	default:
-		return cmd_usage(cmdtp);
+	ret = NetLoop(task);
+	if (ret < 0) {
+		printf("NET transfer failed: ret %d\n", ret);
+		return ret;
 	}
+	size = ret;
 
-	setenv_ul("loadaddr", "0x%08lX", load_addr);
-	setenv_s("bootfile", BootFile);
+	netboot_update_env(task);
 
-	if ((size = NetLoop(proto)) < 0) {
-		printf("NET transfer failed: ret %d\n", size);
-		return 1;
-	}
-
-	/* NetLoop ok, update environment */
-	netboot_update_env();
-
-	/* done if no file was loaded (no errors though) */
 	if (size == 0) {
+		printf("NET warning: zero-length file received\n");
 		return 0;
 	}
 
 	/* flush cache */
-	flush_cache(load_addr, size);
+	flush_cache(task->loadaddr, size);
 
 	/* Loading ok, check if we should attempt an auto-start */
 	if (((s = getenv("autostart")) != NULL) && (strcmp(s,"yes") == 0)) {
 		char *local_args[2];
+
 		local_args[0] = argv[0];
 		local_args[1] = NULL;
 
-		printf ("Automatic boot of image at addr 0x%08lX ...\n",
-			load_addr);
-		rcode = do_bootm (cmdtp, 0, 1, local_args);
+		printf ("NET automatic boot: addr 0x%08lX subcmd %s\n",
+			load_addr, argv[0]);
+		ret = do_bootm (cmdtp, 0, 1, local_args);
 	}
 
-	return rcode;
+	return ret;
 }
 
 #if defined(CONFIG_CMD_PING)
 int do_ping (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
+	struct NetTask task;
+
 	if (argc < 2)
 		return -1;
 
@@ -239,12 +257,13 @@ int do_ping (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (NetPingIP == 0)
 		return cmd_usage(cmdtp);
 
-	if (NetLoop(PING) < 0) {
+	net_init_task_args(&task, PING, argc, argv);
+	if (NetLoop(&task) < 0) {
 		printf("ping failed; host %s is not alive\n", argv[1]);
 		return 1;
 	}
 
-	printf("host %s is alive\n", argv[1]);
+	printf("ping host %s is alive\n", argv[1]);
 
 	return 0;
 }
@@ -257,7 +276,6 @@ U_BOOT_CMD(
 #endif
 
 #if defined(CONFIG_CMD_CDP)
-
 static void cdp_update_env(void)
 {
 	char tmp[16];

@@ -34,10 +34,11 @@
 #define CONFIG_DHCP_MIN_EXT_LEN 64
 #endif
 
-ulong		BootpID;
-int		BootpTry;
+struct NetTask *BootpTask;
+ulong BootpID;
+int	BootpTry;
 #ifdef CONFIG_BOOTP_RANDOM_DELAY
-ulong		seed1, seed2;
+ulong seed1, seed2;
 #endif
 
 #if defined(CONFIG_CMD_DHCP)
@@ -105,7 +106,6 @@ static int BootpCheckPkt(uchar *pkt, unsigned dest, unsigned src, unsigned len)
 static void BootpCopyNetParams(Bootp_t *bp)
 {
 	IPaddr_t tmp_ip;
-	char BootFile[128];
 
 	NetCopyIP(&NetOurIP, &bp->bp_yiaddr);
 #if !defined(CONFIG_BOOTP_SERVERIP)
@@ -114,19 +114,6 @@ static void BootpCopyNetParams(Bootp_t *bp)
 		NetCopyIP(&NetServerIP, &bp->bp_siaddr);
 	memcpy (NetServerEther, ((Ethernet_t *)NetRxPacket)->et_src, 6);
 #endif
-	if (strlen(bp->bp_file) > 0) {
-		copy_filename (BootFile, bp->bp_file, sizeof(BootFile));
-	}
-
-	debug("Bootfile: %s\n", BootFile);
-
-	/* Propagate to environment:
-	 * don't delete exising entry when BOOTP / DHCP reply does
-	 * not contain a new value
-	 */
-	if (*BootFile) {
-		setenv ("bootfile", BootFile);
-	}
 }
 
 static int truncate_sz (const char *name, int maxlen, int curlen)
@@ -280,6 +267,16 @@ static void BootpVendorProcess (u8 * ext, int size)
 	if (NetBootFileSize)
 		debug("NetBootFileSize: %d\n", NetBootFileSize);
 }
+
+static void BootpDeriveTaskTftp(struct NetTask *task, Bootp_t *bp)
+{
+	BUG_ON(BootpTask == NULL);
+	memcpy(task, BootpTask, sizeof(struct NetTask));
+	memcpy(&task->u.tftp, &BootpTask->u.bootp.next_tftp, sizeof(struct NetTaskTftp));
+	copy_filename(task->bootfile, bp->bp_file, MIN(128,MIN(MAXPATH,strlen(bp->bp_file))));
+	task->proto = TFTP;
+}
+
 /*
  *	Handle a BOOTP received packet.
  */
@@ -333,7 +330,9 @@ BootpHandler(uchar * pkt, unsigned dest, unsigned src, unsigned len)
 		}
 	}
 
-	TftpStart();
+	struct NetTask tftp_task;
+	BootpDeriveTaskTftp(&tftp_task, bp);
+	TftpStart(&tftp_task);
 }
 #endif
 
@@ -934,7 +933,9 @@ DhcpHandler(uchar * pkt, unsigned dest, unsigned src, unsigned len)
 #endif
 				}
 			}
-			TftpStart();
+			struct NetTask tftp_task;
+			BootpDeriveTaskTftp(&tftp_task, bp);
+			TftpStart(&tftp_task);
 			return;
 		}
 		break;

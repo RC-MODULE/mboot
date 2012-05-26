@@ -384,8 +384,9 @@ extern int NetTimeOffset;			/* offset time from UTC		*/
 #endif
 
 struct NetTaskTftp {
-	int (*data_cb)(uint32_t off, u8* buf, size_t len, void* ctx);
+	int (*data_cb)(uint32_t off, u8* buf, size_t len, int last, void* ctx);
 	void *data_ctx;
+	int verbose;
 };
 
 struct NetTaskBootp {

@@ -88,6 +88,7 @@ int do_tftpb (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	struct NetTask task;
 	net_init_task_args(&task, TFTP, argc, argv);
+	task.u.tftp.verbose = 1;
 	return netboot_common (&task, cmdtp, argc, argv);
 }
 

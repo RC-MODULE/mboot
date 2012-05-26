@@ -18,7 +18,7 @@ endif
 
 PROG = mboot-$(BOARD_NAME)
 
-all: $(PROG).bin
+all: $(PROG).bin $(PROG).img
 
 clean:
 	-@rm mboot* >/dev/null
@@ -104,4 +104,9 @@ $(PROG): $(COBJS-y)
 
 $(PROG).bin: $(PROG)
 	$(OBJCOPY) -v -O binary $< $@
+
+$(PROG).img: $(PROG).bin
+	printf "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" >$@
+	printf "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" >>$@
+	cat $^ >> $@
 

@@ -138,7 +138,7 @@ static int do_fwupgrade(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 	char dir[MAXPATH];
 	extract_dirname(dir, task.bootfile);
 	if(0 == strcmp(mtd->name, "boot")) {
-		sprintf(task.bootfile, "%smboot.bin", dir);
+		sprintf(task.bootfile, "%smboot.img", dir);
 	} else if(0 == strcmp(mtd->name, "kernel")) {
 		sprintf(task.bootfile, "%suImage", dir);
 	} else {
@@ -166,7 +166,7 @@ U_BOOT_CMD(
 	"fwupgrade - upgrades current mtd device \n"
 	"fwupgrade MTD - upgrades mtd device MTD (can use a partition)\n"
 	"  TFTP file names by partition:\n"
-	"  boot ..... dir($(bootfile))/mboot.bin\n" 
+	"  boot ..... dir($(bootfile))/mboot.img\n" 
 	"  kernel ... dir($(bootfile))/uImage\n" 
 	"  NAME ..... dir($(bootfile))/mboot-NAME.bin\n"
 );

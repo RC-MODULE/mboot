@@ -22,43 +22,14 @@ static int fwu_tftp_cb(uint32_t off, u8* buf, size_t len, void* priv)
 	return 0;
 }
 
-static int fwupgrade(struct mtd_info *mtd, loff_t from, loff_t size)
+static void replace_filename(char* path, const char *to)
 {
-	int ret;
-	struct fwu_tftp_ctx *ctx = &fwu_ctx;
-	u8 *page;
-	char file[MAXPATH];
-
-	// FIXME: manage bootfile
-	return -EINVAL;
-
-	page = malloc(mtd->writesize);
-	if(page == NULL) {
-		printf("FWU unable to allocate memory\n");
-		return -ENOMEM;
-	}
-
-	memset(ctx, 0, sizeof(struct fwu_tftp_ctx));
-	ctx->mtd = mtd;
-	ctx->page = page;
-	ctx->flash_offset = from;
-	ctx->flash_end = from + size;
-
-	TftpCallback = fwu_tftp_cb;
-	TftpCtx = ctx;
-	setenv_s("bootfile", file);
-
-	ret = NetLoop(TFTP);
-	if (ret < 0) {
-		printf("FWU net trasfer failed: ret %d\n", ret);
-		goto out;
-	}
-
-out:
-	TftpCallback = NULL;
-	TftpCtx = NULL;
-	free(page);
-	return 0;
+	char* p = strrchr(path,'/');
+	if(p == NULL)
+		p = path;
+	else
+		p = p+1;
+	strncpy_s(p, to, MAXPATH - (p-path));
 }
 
 static int do_fwupgrade(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
@@ -82,13 +53,36 @@ static int do_fwupgrade(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 		return -1;
 	}
 	
-	ret = fwupgrade(mtd, 0, mtd->size);
-	if(ret != 0) {
-		printf("FWU upgrade failed: ret %d\n", ret);
-		return -1;
+	struct fwu_tftp_ctx *ctx = &fwu_ctx;
+	u8 *page;
+
+	page = malloc(mtd->writesize);
+	if(page == NULL) {
+		printf("FWU unable to allocate memory\n");
+		return -ENOMEM;
 	}
 
-	return ret;
+	memset(ctx, 0, sizeof(struct fwu_tftp_ctx));
+	ctx->mtd = mtd;
+	ctx->page = page;
+	ctx->flash_offset = 0;
+	ctx->flash_end = mtd->size;
+
+	struct NetTask task;
+	net_init_task_def(&task, TFTP);
+	task.u.tftp.data_cb = fwu_tftp_cb;
+	task.u.tftp.data_ctx = ctx;
+	replace_filename(task.bootfile, mtd->name);
+
+	ret = NetLoop(&task);
+	if (ret < 0) {
+		printf("FWU net trasfer failed: ret %d\n", ret);
+		goto out;
+	}
+
+out:
+	free(page);
+	return 0;
 }
 
 //// 	printf("Starting incremental nand update\n");

@@ -125,6 +125,7 @@ COBJS-$(CONFIG_YAFFS2) += cmd_yaffs2.o
 COBJS-$(CONFIG_VFD) += cmd_vfd.o
 COBJS-$(CONFIG_CMD_MNAND) += cmd_mnand.o
 COBJS-$(CONFIG_CMD_MTD) += cmd_mtd.o
+COBJS-$(CONFIG_CMD_MTDBOOT) += cmd_mtdboot.o
 COBJS-$(CONFIG_DDR_SPD) += ddr_spd.o
 COBJS-$(CONFIG_HWCONFIG) += hwconfig.o
 COBJS-$(CONFIG_CONSOLE_MUX) += iomux.o

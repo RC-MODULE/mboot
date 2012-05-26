@@ -284,6 +284,8 @@ static void printf_env(struct estring* name, struct estring* val)
 #define for_all_env(addr,i,pname,pval) \
 	for(i=env_next(addr,pname,pval); (pname)->lstr; i=env_next(i,pname,pval))
 
+/* Sets a value of a variable.
+ * WARNING: values obtained from getenv calls are no longer valid */
 int setenv (const char *rname, const char *rval)
 {
 	char *i;
@@ -338,6 +340,8 @@ out:
 	return 0;
 }
 
+/* Gets a value of a rname variable.
+ * WARNING: value is only valid until next setenv call*/
 char *getenv (const char *rname)
 {
 	char *i;

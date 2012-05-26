@@ -198,7 +198,7 @@ int do_mtd(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 			size = mtd->erasesize;
 		}
 
-		ret = mtd_erase(mtd, off, size, (cmd[0] == 'e'));
+		ret = mtd_erase_blocks(mtd, off, size, (cmd[0] == 'e'));
 		if(ret < 0)
 			printf("mtd_erase_opts failed: ret %d\n", ret);
 
@@ -315,19 +315,12 @@ static int mtd_load_image(cmd_tbl_t *cmdtp, struct mtd_info *mtd,
 {
 	int fmt;
 	int ret;
-	char *ep, *s;
+	char *ep;
 	size_t cnt;
 	image_header_t *hdr;
 #if defined(CONFIG_FIT)
 	const void *fit_hdr = NULL;
 #endif
-
-	s = strchr(cmd, '.');
-	if (s != NULL &&
-	    (strcmp(s, ".jffs2") && strcmp(s, ".e") && strcmp(s, ".i"))) {
-		printf("MTD Unknown nand load suffix '%s'\n", s);
-		return -1;
-	}
 
 	printf("MTD Loading kernel image: dev %s offset 0x%08llX maxsz 0x%08llX\n",
 		mtd->name, offset, maxsz);
@@ -371,7 +364,7 @@ static int mtd_load_image(cmd_tbl_t *cmdtp, struct mtd_info *mtd,
 	/* This cannot be done earlier, we need complete FIT image in RAM first */
 	if (genimg_get_format ((void *)addr) == IMAGE_FORMAT_FIT) {
 		if (!fit_check_format (fit_hdr)) {
-			puts ("MTD: Bad FIT image format\n");
+			puts ("MTD Bad FIT image format\n");
 			return 1;
 		}
 		fit_print_contents (fit_hdr);
@@ -399,52 +392,38 @@ static int mtd_load_image(cmd_tbl_t *cmdtp, struct mtd_info *mtd,
 
 int do_mtdboot(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
-	struct mtd_info * mtd;
-	char boot_device[MAXPATH];
+	struct mtd_info *mtd;
 	ulong addr;
-	loff_t offset = CONFIG_SYS_KERNEL_OFF;
-	loff_t sz = CONFIG_SYS_KERNEL_SIZE;
+	loff_t offset = 0;
+
+	mtd = mtd_get_default();
+	if(mtd == NULL) {
+		printf("MTD wrong or invalid default device\n");
+		return -1;
+	}
 
 	switch (argc) {
 	case 1:
 		getenv_ul("loadaddr", &addr, CONFIG_LOADADDR);
-		getenv_s(MTD_ENV_NAME, &boot_device[0], "mtd0");
 		break;
 	case 2:
 		addr = simple_strtoul(argv[1], NULL, 16);
-		getenv_s(MTD_ENV_NAME, &boot_device[0], "mtd0");
 		break;
 	case 3:
 		addr = simple_strtoul(argv[1], NULL, 16);
-		strncpy_s(boot_device, argv[2], MAXPATH);
-		break;
-	case 4:
-		addr = simple_strtoul(argv[1], NULL, 16);
-		strncpy_s(boot_device, argv[2], MAXPATH);
 		offset = simple_strtoull(argv[3], NULL, 16);
-		break;
-	case 5:
-		addr = simple_strtoul(argv[1], NULL, 16);
-		strncpy_s(boot_device, argv[2], MAXPATH);
-		offset = simple_strtoull(argv[3], NULL, 16);
-		sz = simple_strtoull(argv[4], NULL, 16);
 		break;
 	default:
 		return cmd_usage(cmdtp);
 	}
 
-	mtd = mtd_by_name(boot_device);
-	if(mtd == NULL) {
-		printf("MTD device '%s' not available\n", boot_device);
-		return -1;
-	}
-
-	return mtd_load_image(cmdtp, mtd, offset, sz, addr, argv[0]);
+	return mtd_load_image(cmdtp, mtd, offset, mtd->size, addr, argv[0]);
 }
 
 U_BOOT_CMD(mtdboot, 4, 0, do_mtdboot,
 	"boot from MTD device",
-	"[[[[loadAddr] dev] offset] maxsz]"
+	"[[loadAddr] offset]\n"
+	"  Set " MTD_ENV_NAME " var to change a boot device"
 );
 
 #ifdef CONFIG_SYS_MTD_QUIET

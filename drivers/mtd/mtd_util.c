@@ -161,11 +161,13 @@ int mtd_write_pages(struct mtd_info *mtd,
 
 		if(sz % mtd->writesize != 0) {
 			size_t wsz = sz - (sz % mtd->writesize);
-			ret = mtd_write (mtd, flash_offset, buffer, wsz);
-			if (ret < 0) {
-				printf("MTD write_pages write1 failure: off 0x%08llX ret %d\n",
-					flash_offset, ret);
-				goto err;
+			if(wsz > 0) {
+				ret = mtd_write (mtd, flash_offset, buffer, wsz);
+				if (ret < 0) {
+					printf("MTD write_pages write1 failure: off 0x%08llX ret %d\n",
+						flash_offset, ret);
+					goto err;
+				}
 			}
 
 			memcpy(page, buffer+wsz, sz-wsz);
@@ -218,10 +220,10 @@ err:
 
 /* 
  * Erases the mtd in range [offset, offset+size).
- * skipbb == 1 - Skips bad blocks.
- * Returns: 0 - ok, >0  - # of bad blocks, < 0 - error
+ * skipbb == 1 - Don't erase blocks marked as bad.
+ * Returns: >=0  - ok, number of bad blocks (if skipbb), <0 - error code
  */
-int mtd_erase(
+int mtd_erase_blocks(
 	struct mtd_info *mtd, uint64_t offset, uint64_t size, int skipbb)
 {
 	int bb;
@@ -287,7 +289,10 @@ err:
 }
 
 /* 
- * Overwrites data on the mtd device.
+ * Overwrites data on the mtd device. flash_offset and flash_end must be a
+ * fraction of mtd->erasesize. buffer_size should be smaller than (flash_end -
+ * flash_offset)
+ *
  * Returns: 0 - ok, >0  - # of bad blocks, < 0 - error
  */
 int mtd_overwrite_pages(struct mtd_info* mtd,

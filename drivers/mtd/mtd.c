@@ -41,6 +41,7 @@ LIST_HEAD(g_mtd_list);
  */
 int mtd_add(struct mtd_info *mtd)
 {
+	BUG_ON(mtd->name == NULL);
 	list_add(&mtd->list, &g_mtd_list);
 	return 0;
 }

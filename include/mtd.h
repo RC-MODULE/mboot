@@ -27,6 +27,16 @@ static inline int mtd_write(struct mtd_info *info, loff_t ofs, u_char *buf, size
 	return info->write(info, ofs, len, &tmp, buf);
 }
 
+static inline int mtd_erase1(struct mtd_info *mtd, loff_t ofs)
+{
+	struct erase_info erase;
+	memset(&erase, 0, sizeof(erase));
+	erase.mtd = mtd;
+	erase.len = mtd->erasesize;
+	erase.addr = ofs;
+	return mtd->erase(mtd, &erase);
+}
+
 static inline int mtd_block_isbad(struct mtd_info *info, loff_t ofs)
 {
 	return info->block_isbad(info, ofs);
@@ -91,7 +101,7 @@ int mtd_overwrite_pages(struct mtd_info* mtd,
 	loff_t flash_offset, loff_t flash_end,
 	u8* buffer, size_t buffer_size);
 
-int mtd_erase(struct mtd_info *mtd,
+int mtd_erase_blocks(struct mtd_info *mtd,
 	uint64_t offset,
 	uint64_t size, int skipbb);
 

@@ -1598,10 +1598,7 @@ int mnand_init(struct mtd_info* mtd)
 	TRACE("Dma buffer allocated: 0x%08lX", (unsigned long)g_chip.dma_area);
     memset(g_chip.dma_area, 0xFF, MNAND_DMA_SIZE);
 
-	memset(mtd, 0, sizeof(struct mtd_info));
 	g_chip.mtd = mtd;
-
-	mtd->name = "mtd0";
     mtd->type = MTD_NANDFLASH;
     mtd->flags = MTD_WRITEABLE;
     mtd->erase = mnand_erase;

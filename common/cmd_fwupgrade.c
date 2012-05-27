@@ -101,9 +101,6 @@ static int do_fwupgrade(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 	int ret;
 
 	switch(argc) {
-		case 1:
-			mtd = mtd_get_default();
-			break;
 		case 2:
 			mtd = mtd_by_name(argv[1]);
 			break;
@@ -163,7 +160,7 @@ U_BOOT_CMD(
 	fwupgrade,	2,	0,	do_fwupgrade,
 	"Firmware upgrade via TFTP",
 	"\n"
-	"fwupgrade [mtd] - rewrites mtd device using TFTP\n"
+	"fwupgrade MTD - rewrites mtd device MTD using TFTP\n"
 	"  TFTP file names by partition:\n"
 	"  boot ..... dir($(bootfile))/mboot.img\n" 
 	"  kernel ... dir($(bootfile))/uImage\n" 

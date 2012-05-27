@@ -25,7 +25,32 @@ BOARD_OBJS = \
 	$(ARCH_OBJS) \
 	$(CPU_OBJS)
 
+BOARD_ELF = mboot-uemd
+
+BOARD_BIN = mboot-uemd.bin
+
+BOARD_IMG = mboot-uemd.img
+
+.PHONY: all clean install
+
+all: rules_all $(BOARD_IMG)
+
+install: $(BOARD_IMG)
+	-@if test -d "$(INSTDIR)" ; then \
+		sudo cp -v $^ $(INSTDIR)/mboot.img ;\
+	else \
+		echo "INSTDIR is not defined" >&2 ; \
+	fi
+
+clean: rules_clean
+	-@ rm $(BOARD_IMG)
+
 include arch/arm/Makefile
 include arch/arm/cpu/arm1176/Makefile
 include rules.mk
+
+$(BOARD_IMG): $(BOARD_BIN)
+	printf "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" >$@
+	printf "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" >>$@
+	cat $^ >> $@
 

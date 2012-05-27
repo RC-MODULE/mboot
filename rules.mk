@@ -1,38 +1,54 @@
+#
+# This Makefile is to be included in board's main Makefile. It defines rules_all
+# and rules_clean based the following variables:
+#
+# Cross-compiler prefix, like in Linux kernel
 ifndef CROSS_COMPILE
 $(error CROSS_COMPILE is not set in user`s environment)
 endif
+# Space-separated list of all *o files, which are board-specific. It should
+# include all arch- and cpu-specific code.
+ifndef BOARD_OBJS
+$(error BOARD_OBJS is not set in user`s environment)
+endif
+# Per-board config.h containing various CONFIG_* defines
 ifndef BOARD_CONFIG
 $(error BOARD_CONFIG is not set in Makefile.board)
 endif
+# Per-board linker script
 ifndef BOARD_LDSCRIPT
 $(error BOARD_LDSCRIPT is not set in Makefile.board)
 endif
+# Per-board .text offset
 ifndef BOARD_TEXT_BASE
 $(error BOARD_TEXT_BASE is not set in Makefile.board)
 endif
-ifndef BOARD_NAME
-$(error BOARD_LDSCRIPT is not set in Makefile.board)
+# The name of *elf file
+ifndef BOARD_ELF
+$(error BOARD_ELF is not set in Makefile.board)
+endif
+# The name of *bin file
+ifndef BOARD_BIN
+BOARD_BIN = $(BOARD_ELF).bin
 endif
 
-.PHONY: all clean
+.PHONY: rules_all rules_clean
 
-PROG = mboot-$(BOARD_NAME)
+rules_all: $(BOARD_ELF) $(BOARD_BIN)
 
-all: $(PROG).bin $(PROG).img
-
-clean:
-	-@rm mboot* >/dev/null
+rules_clean:
+	-@rm $(BOARD_ELF) $(BOARD_ELF).config $(BOARD_BIN) >/dev/null
 	-@find -name '*\.o' -exec rm '{}' ';'
 	-@find -name '*\.t' -exec rm '{}' ';'
 	-@find -name '*\.d' -exec rm '{}' ';'
 
-rules.mk: $(PROG).config $(shell find arch board common drivers net lib fs -name Makefile)
+rules.mk: $(BOARD_ELF).config $(shell find arch board common drivers net lib fs -name Makefile)
 
-$(PROG).config: $(BOARD_CONFIG)
+$(BOARD_ELF).config: $(BOARD_CONFIG)
 	$(CPP) -Iinclude -DDO_DEPS_ONLY -dM $(BOARD_CONFIG) | \
 	    sed -n -f tools/scripts/define2mk.sed > $@
 
-include $(PROG).config
+include $(BOARD_ELF).config
 
 VPATH = $(shell find common drivers net lib fs -type d)
 
@@ -99,14 +115,10 @@ tags: $(DEPS)
 
 -include $(DEPS)
 
-$(PROG): $(COBJS-y)
-	$(LD) -T $(BOARD_LDSCRIPT) -Ttext=$(BOARD_TEXT_BASE) --start-group $^ --end-group $(LDFLAGS) -o $@
+$(BOARD_ELF): $(COBJS-y)
+	$(LD) -T $(BOARD_LDSCRIPT) -Ttext=$(BOARD_TEXT_BASE) \
+		--start-group $^ --end-group $(LDFLAGS) -o $@
 
-$(PROG).bin: $(PROG)
+$(BOARD_BIN): $(BOARD_ELF)
 	$(OBJCOPY) -v -O binary $< $@
-
-$(PROG).img: $(PROG).bin
-	printf "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" >$@
-	printf "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" >>$@
-	cat $^ >> $@
 

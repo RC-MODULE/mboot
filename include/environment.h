@@ -41,7 +41,15 @@ struct env_ops {
 	int (*writeenv) (const char* str, size_t len, void *priv);
 };
 
-int env_init(struct env_ops *ops, void *priv);
+struct env_var {
+	const char *name;
+	const char *val;
+};
+
+#define ENV_VAR(n,v) { .name = n, .val = v }
+#define ENV_NULL { .name = NULL, .val = NULL }
+
+int env_init(struct env_ops *ops, struct env_var *defs, void *priv);
 
 int	setenv(const char *n, const char *v);
 

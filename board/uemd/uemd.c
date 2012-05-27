@@ -36,6 +36,33 @@
 
 #include "uemd.h"
 
+#define _MK_STR(x)	#x
+#define STR(x)	_MK_STR(x)
+
+static struct env_var g_env_def[] = {
+	ENV_VAR("bootargs",   CONFIG_BOOTARGS),
+#ifdef CONFIG_BOOTCMD
+	ENV_VAR("bootcmd",    CONFIG_BOOTCMD),
+#endif
+#ifdef CONFIG_BOOTDELAY
+	ENV_VAR("bootdelay",  CONFIG_BOOTDELAY),
+#endif 
+#ifdef CONFIG_AUTOLOAD
+	ENV_VAR("autoload",   CONFIG_AUTOLOAD),
+#endif
+	ENV_VAR("ethaddr",    CONFIG_ETHADDR),
+	ENV_VAR("ipaddr",     CONFIG_IPADDR),
+	ENV_VAR("serverip",   CONFIG_SERVERIP),
+	ENV_VAR("gatewayip",  CONFIG_GATEWAYIP),
+	ENV_VAR("netmask",    CONFIG_NETMASK),
+#ifdef CONFIG_HOSTNAME
+	ENV_VAR("hostname",   CONFIG_HOSTNAME),
+#endif
+	ENV_VAR("bootfile",   CONFIG_BOOTFILE),
+	ENV_VAR("loadaddr",   STR(CONFIG_LOADADDR)),
+	ENV_NULL
+};
+
 void reset_cpu(ulong addr)
 {
 	MEM(0x20025000 + 0xf00) = 1;
@@ -207,7 +234,7 @@ void uemd_init(struct uemd_otp *otp)
 	}
 
 	/* ENV */
-	ret = env_init(&g_uemd_env_ops, part_env);
+	ret = env_init(&g_uemd_env_ops, g_env_def, part_env);
 	uemd_check_zero(ret, goto err, "Env init failed");
 
 	/* ETH */

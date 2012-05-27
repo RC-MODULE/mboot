@@ -26,6 +26,7 @@
 
 #include <common.h>
 #include <command.h>
+#include <errno.h>
 
 #define SEP '\0'
 #define SSEP "\0"
@@ -50,94 +51,31 @@ inline int estr_eq(const struct estring *s, const char *v)
 }
 
 
-#define _MK_STR(x)	#x
-#define MK_STR(x)	_MK_STR(x)
-
-static char default_environment[] = {
-#ifdef	CONFIG_BOOTARGS
-	"bootargs="	CONFIG_BOOTARGS			SSEP
-#endif
-#ifdef	CONFIG_BOOTCOMMAND
-	"bootcmd="	CONFIG_BOOTCOMMAND		SSEP
-#endif
-#ifdef	CONFIG_RAMBOOTCOMMAND
-	"ramboot="	CONFIG_RAMBOOTCOMMAND		SSEP
-#endif
-#ifdef	CONFIG_NFSBOOTCOMMAND
-	"nfsboot="	CONFIG_NFSBOOTCOMMAND		SSEP
-#endif
-#if defined(CONFIG_BOOTDELAY) && (CONFIG_BOOTDELAY >= 0)
-	"bootdelay="	MK_STR(CONFIG_BOOTDELAY)	SSEP
-#endif
-#if defined(CONFIG_BAUDRATE) && (CONFIG_BAUDRATE >= 0)
-	"baudrate="	MK_STR(CONFIG_BAUDRATE)		SSEP
-#endif
-#ifdef	CONFIG_LOADS_ECHO
-	"loads_echo="	MK_STR(CONFIG_LOADS_ECHO)	SSEP
-#endif
-#ifdef	CONFIG_ETHADDR
-	"ethaddr="	CONFIG_ETHADDR		SSEP
-#endif
-#ifdef	CONFIG_ETH1ADDR
-	"eth1addr="	CONFIG_ETH1ADDR		SSEP
-#endif
-#ifdef	CONFIG_ETH2ADDR
-	"eth2addr="	CONFIG_ETH2ADDR		SSEP
-#endif
-#ifdef	CONFIG_ETH3ADDR
-	"eth3addr="	CONFIG_ETH3ADDR		SSEP
-#endif
-#ifdef	CONFIG_ETH4ADDR
-	"eth4addr="	CONFIG_ETH4ADDR		SSEP
-#endif
-#ifdef	CONFIG_ETH5ADDR
-	"eth5addr="	CONFIG_ETH5ADDR		SSEP
-#endif
-#ifdef	CONFIG_IPADDR
-	"ipaddr="	CONFIG_IPADDR		SSEP
-#endif
-#ifdef	CONFIG_SERVERIP
-	"serverip="	CONFIG_SERVERIP		SSEP
-#endif
-#ifdef	CONFIG_SYS_AUTOLOAD
-	"autoload="	CONFIG_SYS_AUTOLOAD			SSEP
-#endif
-#ifdef	CONFIG_PREBOOT
-	"preboot="	CONFIG_PREBOOT			SSEP
-#endif
-#ifdef	CONFIG_ROOTPATH
-	"rootpath="	CONFIG_ROOTPATH		SSEP
-#endif
-#ifdef	CONFIG_GATEWAYIP
-	"gatewayip="	CONFIG_GATEWAYIP	SSEP
-#endif
-#ifdef	CONFIG_NETMASK
-	"netmask="	CONFIG_NETMASK		SSEP
-#endif
-#ifdef	CONFIG_HOSTNAME
-	"hostname="	CONFIG_HOSTNAME		SSEP
-#endif
-#ifdef	CONFIG_BOOTFILE
-	"bootfile="	CONFIG_BOOTFILE		SSEP
-#endif
-#ifdef	CONFIG_LOADADDR
-	"loadaddr="	MK_STR(CONFIG_LOADADDR)		SSEP
-#endif
-#ifdef  CONFIG_CLOCKS_IN_MHZ
-	"clocks_in_mhz=1"                       SSEP
-#endif
-	SEOE
-};
-
 #ifdef  CONFIG_EXTRA_ENV_SETTINGS
 #error Not in UEMD
 #endif
 
+static struct env_ops *g_ops;
+static char* g_env = NULL;
+static size_t g_env_sz = 0;
+static void* g_env_priv = NULL;
+static int g_env_id = 1;
+
 static int env_read_default(char* buf, size_t *len, void *priv)
 {
-	size_t sz = MIN(sizeof(default_environment), *len);
-	memcpy(buf, default_environment, sz);
-	*len = sz;
+	int free;
+	struct env_var *defs = (struct env_var*)(priv);
+	for(;defs->name!=NULL; defs++) {
+		free = setenv(defs->name, defs->val);
+		if(free < 0) {
+			printf("ENV setenv failed: var %s red %d\n", defs->name, free);
+			return free;
+		}
+	}
+	printf("ENV loaded defaults: free 0x%08X\n", free);
+	//size_t sz = MIN(sizeof(default_environment), *len);
+	//memcpy(buf, default_environment, sz);
+	*len = g_env_sz;
 	return 0;
 }
 
@@ -146,19 +84,12 @@ static struct env_ops g_default_ops = {
 	.writeenv = NULL,
 };
 
-static struct env_ops *g_ops;
-static char* g_env = NULL;
-static size_t g_env_sz = 0;
-static void* g_env_priv = NULL;
-
-static int g_env_id = 1;
-
 int get_env_id (void)
 {
 	return g_env_id;
 }
 
-int env_init(struct env_ops *ops, void *priv)
+int env_init(struct env_ops *ops, struct env_var *defs, void *priv)
 {
 	int ret;
 	size_t sz;
@@ -167,6 +98,7 @@ int env_init(struct env_ops *ops, void *priv)
 	g_env_priv = priv;
 	g_env = (char*)CONFIG_SYS_ENV_ADDR;
 	g_env_sz = (size_t)CONFIG_SYS_ENV_SIZE;
+	g_env[0] = EOE;
 
 	g_ops = ops==NULL ? (&g_default_ops) : ops;
 	if(g_ops->readenv == NULL) {
@@ -199,8 +131,9 @@ int env_init(struct env_ops *ops, void *priv)
 	return 0;
 
 def:
+	g_env[0] = EOE;
 	sz = (size_t)CONFIG_SYS_ENV_SIZE;
-	ret = env_read_default(g_env, &sz, NULL);
+	ret = env_read_default(g_env, &sz, defs);
 	if(ret < 0) {
 		return ret;
 	}
@@ -288,12 +221,12 @@ static void printf_env(struct estring* name, struct estring* val)
  * WARNING: values obtained from getenv calls are no longer valid */
 int setenv (const char *rname, const char *rval)
 {
-	char *i;
+	char *i, *eoe;
 	struct estring name, val;
 	size_t free, len;
 
 	if(g_env == NULL)
-		return -1;
+		return -EPERM;
 
 	if(rval > g_env && rval <= g_env+g_env_sz) {
 		error("BUG: recursive environment pointers: name %s val %s",
@@ -307,6 +240,9 @@ int setenv (const char *rname, const char *rval)
 			break;
 		}
 	}
+
+	/* Now i points to EOE */
+	eoe = i;
 
 	if(rval == NULL) goto out;
 
@@ -328,6 +264,7 @@ int setenv (const char *rname, const char *rval)
 	free -= len;
 
 	len = MIN(free,1);
+	if(len == 0) goto bad;
 	memcpy(i, SSEP, len);
 	i += len;
 	free -= len;
@@ -336,8 +273,11 @@ int setenv (const char *rname, const char *rval)
 
 out:
 	g_env_id++;
+	return (int)MIN(free,0x7fffffff);
 
-	return 0;
+bad:
+	*eoe = EOE;
+	return -ENOMEM;
 }
 
 /* Gets a value of a rname variable.
@@ -388,22 +328,26 @@ U_BOOT_CMD(
 
 static int do_env_set(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
+	int ret;
 	switch(argc) {
-		case 2: return setenv(argv[1], NULL);
-		case 3: return setenv(argv[1], argv[2]);
-		default: break;
+		case 2: ret = setenv(argv[1], NULL); break;
+		case 3: ret = setenv(argv[1], argv[2]); break;
+		return cmd_usage(cmdtp);
 	}
-
-	return cmd_usage(cmdtp);
+	if(ret < 0) {
+		printf("ENV setenv failed: red %d\n", ret);
+		return ret;
+	}
+	return ret;
 }
 
 U_BOOT_CMD(
 	setenv, 3, 0, do_env_set,
 	"set environment variables",
-	"name value ...\n"
-	"    - set environment variable 'name' to 'value ...'\n"
-	"setenv name\n"
-	"    - NOT IMPLEMENTED"
+	"NAME VALUE\n"
+	"    - sets environment variable NAME'\n"
+	"setenv NAME\n"
+	"    - delete value NAME"
 );
 
 int do_env_save (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])

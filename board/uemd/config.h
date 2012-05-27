@@ -166,6 +166,7 @@
  */
 #define CONFIG_MTD
 #define CONFIG_CMD_MTD
+#define CONFIG_CMD_MTDBOOT
 #define CONFIG_MTD_PARTITIONS
 // Name of a boot partition
 #define CONFIG_MTD_BOOTNAME "kernel"

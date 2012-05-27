@@ -33,6 +33,7 @@
 #include <command.h>
 #include <compiler.h>
 #include <errno.h>
+#include <main.h>
 
 #include "uemd.h"
 
@@ -245,7 +246,13 @@ void uemd_init(struct uemd_otp *otp)
 	}
 #endif
 
-	main_loop();
+	struct main_state ms;
+	memset(&ms, 0, sizeof(struct main_state));
+
+	while(ms.imageaddr == NULL) {
+		ret = main_process_command(&ms);
+		uemd_check_zero(ret, goto err, "process command failed");
+	}
 
 err:
 	uemd_hang();

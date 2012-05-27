@@ -1012,14 +1012,9 @@ int do_bootd (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	int rcode = 0;
 
-#ifndef CONFIG_SYS_HUSH_PARSER
 	if (run_command (getenv ("bootcmd"), flag) < 0)
 		rcode = 1;
-#else
-	if (parse_string_outer (getenv ("bootcmd"),
-			FLAG_PARSE_SEMICOLON | FLAG_EXIT_FROM_LOOP) != 0)
-		rcode = 1;
-#endif
+
 	return rcode;
 }
 
@@ -1035,7 +1030,6 @@ U_BOOT_CMD(
 	"boot default, i.e., run 'bootcmd'",
 	""
 );
-
 #endif
 
 

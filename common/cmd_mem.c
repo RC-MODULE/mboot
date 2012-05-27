@@ -36,6 +36,7 @@
 
 #include <u-boot/md5.h>
 #include <sha1.h>
+#include <main.h>
 
 #ifdef	CMD_MEM_DEBUG
 #define	PRINTF(fmt,args...)	printf (fmt ,##args)

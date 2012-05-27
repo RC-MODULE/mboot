@@ -763,7 +763,7 @@ static int greth_reset(greth_priv *greth)
 }
 
 /* Uses env, uses console, uses malloc */
-int greth_initialize(bd_t * bis)
+int greth_initialize()
 {
 	greth_priv *greth;
 	ambapp_apbdev apbdev;

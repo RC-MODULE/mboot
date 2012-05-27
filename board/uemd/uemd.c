@@ -73,7 +73,7 @@ int board_eth_init(bd_t *bis)
 {
 	int ret = -1;
 #ifdef CONFIG_GRETH
-	ret = greth_initialize(bis);
+	ret = greth_initialize();
 #endif
 	return ret;
 }

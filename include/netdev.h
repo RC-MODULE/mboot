@@ -62,7 +62,7 @@ int eth_3com_initialize (bd_t * bis);
 int fec_initialize (bd_t *bis);
 int fecmxc_initialize (bd_t *bis);
 int ftmac100_initialize(bd_t *bits);
-int greth_initialize(bd_t *bis);
+int greth_initialize();
 void gt6426x_eth_initialize(bd_t *bis);
 int inca_switch_initialize(bd_t *bis);
 int lan91c96_initialize(u8 dev_num, int base_addr);

@@ -22,6 +22,9 @@
  * MA 02111-1307 USA
  */
 
+#ifndef NET_GRETH_H
+#define NET_GRETH_H
+
 #define GRETH_FD 0x10
 #define GRETH_RESET 0x40
 #define GRETH_MII_BUSY 0x8
@@ -95,3 +98,6 @@ typedef struct _greth_bd {
 	volatile unsigned int stat;
 	unsigned int addr;	/* Buffer address not changed by HW */
 } greth_bd;
+
+#endif
+

@@ -590,18 +590,6 @@ int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	ulong		load_end = 0;
 	int		ret;
 	boot_os_fn	*boot_fn;
-#ifdef CONFIG_NEEDS_MANUAL_RELOC
-	static int relocated = 0;
-
-	/* relocate boot function table */
-	if (!relocated) {
-		int i;
-		for (i = 0; i < ARRAY_SIZE(boot_os); i++)
-			if (boot_os[i] != NULL)
-				boot_os[i] += gd->reloc_off;
-		relocated = 1;
-	}
-#endif
 
 	/* determine if we have a sub command */
 	if (argc > 1) {

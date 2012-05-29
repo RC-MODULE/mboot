@@ -71,11 +71,11 @@ extern int do_bootm (cmd_tbl_t *, int, int, char * const []);
 
 static int netboot_common (struct NetTask *task, cmd_tbl_t *, int , char * const []);
 
-int do_bootp (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_bootp (struct cmd_ctx *ctx, int argc, char * const argv[])
 {
 	struct NetTask task;
 	net_init_task_args(&task, BOOTP, argc, argv);
-	return netboot_common (&task, cmdtp, argc, argv);
+	return netboot_common (&task, ctx->cmdtp, argc, argv);
 }
 
 U_BOOT_CMD(
@@ -84,12 +84,12 @@ U_BOOT_CMD(
 	"[loadAddress] [[hostIPaddr:]bootfilename]"
 );
 
-int do_tftpb (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_tftpb (struct cmd_ctx *ctx, int argc, char * const argv[])
 {
 	struct NetTask task;
 	net_init_task_args(&task, TFTP, argc, argv);
 	task.u.tftp.verbose = 1;
-	return netboot_common (&task, cmdtp, argc, argv);
+	return netboot_common (&task, ctx->cmdtp, argc, argv);
 }
 
 U_BOOT_CMD(
@@ -229,7 +229,7 @@ netboot_common (struct NetTask *task, cmd_tbl_t *cmdtp, int argc, char * const a
 	}
 
 	/* flush cache */
-	flush_cache(task->loadaddr, size);
+	dcache_flush_range(task->loadaddr, size);
 
 	/* Loading ok, check if we should attempt an auto-start */
 	if (((s = getenv("autostart")) != NULL) && (strcmp(s,"yes") == 0)) {
@@ -247,7 +247,7 @@ netboot_common (struct NetTask *task, cmd_tbl_t *cmdtp, int argc, char * const a
 }
 
 #if defined(CONFIG_CMD_PING)
-int do_ping (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_ping (struct cmd_ctx *ctx, int argc, char * const argv[])
 {
 	struct NetTask task;
 	const char *ping;
@@ -260,12 +260,12 @@ int do_ping (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			ping = argv[1];
 			break;
 		default:
-			return cmd_usage(cmdtp);
+			return cmd_usage(ctx->cmdtp);
 	}
 
 	NetPingIP = string_to_ip(ping);
 	if (NetPingIP == 0)
-		return cmd_usage(cmdtp);
+		return cmd_usage(ctx->cmdtp);
 
 	net_init_task_args(&task, PING, argc, argv);
 	if (NetLoop(&task) < 0) {
@@ -368,7 +368,7 @@ U_BOOT_CMD(
 int do_dns(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	if (argc == 1)
-		return cmd_usage(cmdtp);
+		return cmd_usage(cmdtp->cmdtp);
 
 	/*
 	 * We should check for a valid hostname:

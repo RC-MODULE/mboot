@@ -61,6 +61,11 @@ int mtdparts_add(struct mtd_info* master, struct mtd_part* parts);
 
 extern struct list_head g_mtdpats_list;
 
+/* List partitions in order they were created */
 #define for_all_mtdparts(part) list_for_each_entry_reverse(part, &g_mtdpats_list, list)
+
+/* List partitions of a specific MTD device, in order they were created */
+#define for_all_mtdparts_of(part, mtdname) \
+	for_all_mtdparts(part) if(0 == strcmp(part->master->name, mtdname))
 
 #endif

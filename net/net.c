@@ -98,7 +98,7 @@
 #include "dns.h"
 #endif
 
-DECLARE_GLOBAL_DATA_PTR;
+//DECLARE_GLOBAL_DATA_PTR;
 
 #ifndef	CONFIG_ARP_TIMEOUT
 # define ARP_TIMEOUT		5000UL	/* Milliseconds before trying ARP again */
@@ -308,7 +308,7 @@ NetInitLoop(proto_t protocol)
 int
 NetLoop(struct NetTask *task)
 {
-	bd_t *bd = gd->bd;
+	//bd_t *bd = gd->bd;
 
 #ifdef CONFIG_NET_MULTI
 	NetRestarted = 0;
@@ -346,7 +346,7 @@ NetLoop(struct NetTask *task)
 #ifdef CONFIG_NET_MULTI
 	eth_set_current();
 #endif
-	if (eth_init(bd) < 0) {
+	if (eth_init() < 0) {
 		eth_halt();
 		return(-1);
 	}
@@ -583,7 +583,7 @@ void NetStartAgain (void)
 #if !defined(CONFIG_NET_DO_NOT_TRY_ANOTHER)
 	eth_try_another (!NetRestarted);
 #endif
-	eth_init (gd->bd);
+	eth_init ();
 	if (NetRestartWrap) {
 		NetRestartWrap = 0;
 		if (NetDevExists) {

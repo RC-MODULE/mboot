@@ -212,7 +212,7 @@ static int write_mii(int addr, int data, int phyaddr, volatile greth_regs * regs
 /* init/start hardware and allocate descriptor buffers for rx side
  *
  */
-static int greth_init(struct eth_device *dev, bd_t * bis)
+static int greth_init(struct eth_device *dev)
 {
 	int i;
 

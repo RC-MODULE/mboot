@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2009
+ * (C) Copyright 2000-2009
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  *
  * See file CREDITS for list of people who contributed to this
@@ -23,15 +23,54 @@
 
 #include <common.h>
 #include <command.h>
+#include <image.h>
+#include <environment.h>
+#include <errno.h>
+#include <main.h>
 
-int do_version(struct cmd_ctx *ctx, int argc, char * const argv[])
+int do_bootm (struct cmd_ctx *ctx, int argc, char * const argv[])
 {
-	printf("%s\n", MBOOT_VERSION);
+	int ret;
+	unsigned long addr;
+
+	switch(argc) {
+		case 1:
+			getenv_ul("loadaddr", &addr, CONFIG_LOADADDR);
+			break;
+		case 2:
+			addr = simple_strtoul(argv[1], NULL, 16);
+			break;
+		default:
+			return cmd_usage(ctx->cmdtp);
+	}
+
+	ret = image_scan(addr, &ctx->ms->os_image);
+	if(ret < 0) {
+		printf("BOOTM scan image failed: addr 0x%08lX ret %d\n",
+			addr, ret);
+		return -1;
+	}
+
 	return 0;
 }
 
+
 U_BOOT_CMD(
-	version,	1,		1,	do_version,
-	"print mboot version",
+	bootm,	CONFIG_SYS_MAXARGS,	1,	do_bootm,
+	"boot application image from memory",
 	""
 );
+
+#if defined(CONFIG_CMD_BOOTD)
+int do_bootd (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	return run_command (getenv ("bootcmd"), flag);
+}
+
+U_BOOT_CMD(
+	bootd, 1,	1,	do_bootd,
+	"boot default, i.e., run 'bootcmd'",
+	""
+);
+#endif
+

@@ -60,8 +60,6 @@ int eth_getenv_enetaddr_by_index(int index, uchar *enetaddr)
 	return eth_getenv_enetaddr(enetvar, enetaddr);
 }
 
-#ifdef CONFIG_NET_MULTI
-
 static int eth_mac_skip(int index)
 {
 	char enetvar[15];
@@ -69,31 +67,6 @@ static int eth_mac_skip(int index)
 	sprintf(enetvar, index ? "eth%dmacskip" : "ethmacskip", index);
 	return ((skip_state = getenv(enetvar)) != NULL);
 }
-
-/*
- * CPU and board-specific Ethernet initializations.  Aliased function
- * signals caller to move on
- */
-static int __def_eth_init(bd_t *bis)
-{
-	return -1;
-}
-int cpu_eth_init(bd_t *bis) __attribute__((weak, alias("__def_eth_init")));
-int board_eth_init(bd_t *bis) __attribute__((weak, alias("__def_eth_init")));
-
-extern int mv6436x_eth_initialize(bd_t *);
-extern int mv6446x_eth_initialize(bd_t *);
-
-#ifdef CONFIG_API
-extern void (*push_packet)(volatile void *, int);
-
-static struct {
-	uchar data[PKTSIZE];
-	int length;
-} eth_rcv_bufs[PKTBUFSRX];
-
-static unsigned int eth_rcv_current = 0, eth_rcv_last = 0;
-#endif
 
 static struct eth_device *eth_devices, *eth_current;
 
@@ -192,42 +165,37 @@ int eth_register(struct eth_device* dev)
 	return 0;
 }
 
-int eth_initialize(bd_t *bis)
+//int eth_initialize(bd_t *bis)
+int eth_initialize(void)
 {
 	unsigned char env_enetaddr[6];
 	int eth_number = 0;
+	int ret;
 
 	eth_devices = NULL;
 	eth_current = NULL;
 
-	show_boot_progress (64);
 #if defined(CONFIG_MII) || defined(CONFIG_CMD_MII)
 	miiphy_init();
 #endif
 	/* Try board-specific initialization first.  If it fails or isn't
 	 * present, try the cpu-specific initialization */
-	if (board_eth_init(bis) < 0)
-		cpu_eth_init(bis);
+	// FIXME: legacy method. remove it completely
+	ret = board_eth_init();
+	if (ret < 0)
+		return ret;
 
-#if defined(CONFIG_DB64360) || defined(CONFIG_CPCI750)
-	mv6436x_eth_initialize(bis);
-#endif
-#if defined(CONFIG_DB64460) || defined(CONFIG_P3Mx)
-	mv6446x_eth_initialize(bis);
-#endif
 	if (!eth_devices) {
 		puts ("No ethernet found.\n");
-		show_boot_progress (-64);
 	} else {
 		struct eth_device *dev = eth_devices;
 		char *ethprime = getenv ("ethprime");
 
-		show_boot_progress (65);
 		do {
 			if (eth_number)
 				puts (", ");
 
-			printf("%s", dev->name);
+			printf("ETH new device: name %s \n", dev->name);
 
 			if (ethprime && strcmp (dev->name, ethprime) == 0) {
 				eth_current = dev;
@@ -270,8 +238,6 @@ int eth_initialize(bd_t *bis)
 				setenv("ethact", eth_current->name);
 		} else
 			setenv("ethact", NULL);
-
-		putc ('\n');
 	}
 
 	return eth_number;
@@ -323,7 +289,7 @@ u32 ether_crc (size_t len, unsigned char const *p)
 #endif
 
 
-int eth_init(bd_t *bis)
+int eth_init(void)
 {
 	int eth_number;
 	struct eth_device *old_current, *dev;
@@ -350,7 +316,7 @@ int eth_init(bd_t *bis)
 	do {
 		debug("Trying %s\n", eth_current->name);
 
-		if (eth_current->init(eth_current,bis) >= 0) {
+		if (eth_current->init(eth_current) >= 0) {
 			eth_current->state = ETH_STATE_ACTIVE;
 
 			return 0;
@@ -500,30 +466,3 @@ char *eth_get_name (void)
 	return (eth_current ? eth_current->name : "unknown");
 }
 
-#else /* !CONFIG_NET_MULTI */
-
-#warning Ethernet driver is deprecated.  Please update to use CONFIG_NET_MULTI
-
-extern int at91rm9200_miiphy_initialize(bd_t *bis);
-extern int mcf52x2_miiphy_initialize(bd_t *bis);
-extern int ns7520_miiphy_initialize(bd_t *bis);
-
-
-int eth_initialize(bd_t *bis)
-{
-#if defined(CONFIG_MII) || defined(CONFIG_CMD_MII)
-	miiphy_init();
-#endif
-
-#if defined(CONFIG_AT91RM9200)
-	at91rm9200_miiphy_initialize(bis);
-#endif
-#if defined(CONFIG_MCF52x2)
-	mcf52x2_miiphy_initialize(bis);
-#endif
-#if defined(CONFIG_DRIVER_NS7520_ETHERNET)
-	ns7520_miiphy_initialize(bis);
-#endif
-	return 0;
-}
-#endif

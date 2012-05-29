@@ -24,7 +24,7 @@
 /* Replacement (=dummy) for GNU/Linux division-by zero handler */
 void __div0 (void)
 {
-	extern void hang (void);
+	extern void board_hang (void);
 
-	hang();
+	board_hang();
 }

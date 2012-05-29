@@ -38,16 +38,20 @@
  */
 
 #include <common.h>
+#include <command.h>
 
-int do_reset(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_reset(struct cmd_ctx *ctx, int argc, char * const argv[])
 {
 	puts ("resetting ...\n");
-
-	udelay (50000);				/* wait 50 ms */
-
-	disable_interrupts();
 	reset_cpu(0);
 
-	/*NOTREACHED*/
+	/* Not reached */
 	return 0;
 }
+
+U_BOOT_CMD(
+	reset, 1, 0, do_reset,
+	"Perform RESET of the CPU",
+	""
+);
+

@@ -37,9 +37,10 @@
  *     -1: failure
  */
 
-int board_eth_init(bd_t *bis);
-int cpu_eth_init(bd_t *bis);
+int board_eth_init(void);
+/*int cpu_eth_init(bd_t *bis);*/
 
+#if 0
 /* Driver initialization prototypes */
 int altera_tse_initialize(u8 dev_num, int mac_base,
 			  int sgdma_rx_base, int sgdma_tx_base);
@@ -62,7 +63,6 @@ int eth_3com_initialize (bd_t * bis);
 int fec_initialize (bd_t *bis);
 int fecmxc_initialize (bd_t *bis);
 int ftmac100_initialize(bd_t *bits);
-int greth_initialize();
 void gt6426x_eth_initialize(bd_t *bis);
 int inca_switch_initialize(bd_t *bis);
 int lan91c96_initialize(u8 dev_num, int base_addr);
@@ -134,6 +134,9 @@ static inline int pci_eth_init(bd_t *bis)
 #endif  /* CONFIG_PCI */
 	return num;
 }
+#endif
+
+int greth_initialize();
 
 /*
  * Boards with mv88e61xx switch can use this by defining

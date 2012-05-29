@@ -40,8 +40,12 @@
 #define _MK_STR(x)	#x
 #define STR(x)	_MK_STR(x)
 
+#define CONFIG_BOOTARGS    "earlyprintk=serial console=ttyS0,38400n8 root=/dev/nfs nfsroot=10.0.0.1:/home/smironov/arm-module2-linux-gnueabi ip=10.0.0.2:10.0.0.1:10.0.0.1:255.255.255.0:UEMD:eth0:off greth.pure10Mbit=1 debug"
+
+#define CONFIG_BOOTARGS_MTD "earlyprintk=serial console=ttyS0,38400n8 root=/dev/mtdblock3 ip=10.0.0.2:10.0.0.1:10.0.0.1:255.255.255.0:UEMD:eth0:off debug"
+
 static struct env_var g_env_def[] = {
-	ENV_VAR("bootargs",   CONFIG_BOOTARGS),
+	ENV_VAR("bootargs",   CONFIG_BOOTARGS_MTD),
 #ifdef CONFIG_BOOTCMD
 	ENV_VAR("bootcmd",    CONFIG_BOOTCMD),
 #endif
@@ -64,49 +68,20 @@ static struct env_var g_env_def[] = {
 	ENV_NULL
 };
 
-void reset_cpu(ulong addr)
+void board_reset(void)
 {
 	MEM(0x20025000 + 0xf00) = 1;
 	MEM(0x20025000 + 0xf04) = 1;
 }
 
-int board_eth_init(bd_t *bis)
+int board_eth_init(void)
 {
-	int ret = -1;
-#ifdef CONFIG_GRETH
-	ret = greth_initialize();
-#endif
-	return ret;
+	return greth_initialize();
 }
 
-void hang (void)
-{
-	puts ("ERROR: Please reset the board\n");
-	for (;;);
-}
-
-static void uemd_hang(void)
+void board_hang (void)
 {
 	for (;;);
-}
-
-static int uemd_gd_init(void)
-{
-	DECLARE_GLOBAL_DATA_PTR;
-
-	if(sizeof(gd_t) > CONFIG_SYS_GD_SIZE)
-		return -1;
-	if(sizeof(bd_t) > CONFIG_SYS_BD_SIZE)
-		return -2;
-
-	memset((void*)(CONFIG_SYS_GD_ADDR), 0, CONFIG_SYS_GD_SIZE);
-	memset((void*)(CONFIG_SYS_BD_ADDR), 0, CONFIG_SYS_BD_SIZE);
-	gd = (gd_t *) (CONFIG_SYS_GD_ADDR);
-
-	gd->bd = (bd_t *) (CONFIG_SYS_BD_ADDR);
-	gd->bd->bi_arch_number = CONFIG_UEMD_MACH_TYPE;
-	gd->bd->bi_boot_params = CONFIG_SYS_PARAM_ADDR;
-	return 0;
 }
 
 static int uemd_env_read(char* buf, size_t *len, void *priv)
@@ -156,34 +131,32 @@ static struct env_ops g_uemd_env_ops = {
 	.writeenv = uemd_env_write,
 };
 
+#define MTDALL "mnand"
 #define MTDENV "env"
 #define MTDBOOT CONFIG_MTD_BOOTNAME
 
 void uemd_init(struct uemd_otp *otp)
 {
-	DECLARE_GLOBAL_DATA_PTR;
+	//DECLARE_GLOBAL_DATA_PTR;
 	int ret;
 	int netn;
 
+	/* TIMERS */
 	uemd_timer_init();
 
 	/* SERIAL */
 	ret = uemd_console_init();
 	if(ret < 0)
-		goto err;
+		goto err_noconsole;
 
 	printf("MBOOT (UEMD mode): Version %s (Built %s)\n",
 		MBOOT_VERSION, MBOOT_DATE);
 	printf("OTP info: boot_source %u jtag_stop %u words_len %u\n",
 		otp->source, otp->jtag_stop, otp->words_length);
 
-	/* Global data (U-boot legacy) */
-	ret = uemd_gd_init();
-	uemd_check_zero(ret, goto err, "GD init failed");
-
-	printf("Hardcoded MachineID 0x%x (may be changed via env)\n", gd->bd->bi_arch_number);
-
-	ret = uemd_em_init_check(&gd->bd->bi_dram[0], CONFIG_NR_DRAM_BANKS);
+	/* SDRAM */
+	struct memregion sdram;
+	ret = uemd_em_init_check(&sdram);
 	uemd_check_zero(ret, goto err, "SDRAM init failed");
 
 	/* MALLOC */
@@ -203,7 +176,7 @@ void uemd_init(struct uemd_otp *otp)
 	printf("\t0x%08X  gd\n", CONFIG_SYS_GD_ADDR);
 
 	/* MTD/MNAND */
-	struct mtd_info mtd_mnand = MTD_INITIALISER("mnand");
+	struct mtd_info mtd_mnand = MTD_INITIALISER(MTDALL);
 
 	ret = mnand_init(&mtd_mnand);
 	uemd_check_zero(ret, goto err, "MNAND init failed");
@@ -239,63 +212,61 @@ void uemd_init(struct uemd_otp *otp)
 	uemd_check_zero(ret, goto err, "Env init failed");
 
 	/* ETH */
-#ifdef CONFIG_NET_MULTI
-	netn = eth_initialize(gd->bd);
+	netn = eth_initialize();
 	if(netn <= 0) {
 		uemd_error("Failed to initialise ethernet");
 	}
-#endif
 
+	/* MAIN LOOP */
 	struct main_state ms;
-	memset(&ms, 0, sizeof(struct main_state));
-
-	while(ms.imageaddr == NULL) {
+	main_state_init(&ms);
+	while(! MAIN_STATE_HAS_ENTRY(&ms)) {
 		ret = main_process_command(&ms);
-		uemd_check_zero(ret, goto err, "process command failed");
+		uemd_check_zero(ret, goto err, "Process command failed");
 	}
 
+	ulong machid;
+	getenv_ul("machid", &machid, CONFIG_UEMD_MACH_TYPE);
+	printf("Linux preparing to boot the kernel: machid 0x%lx\n", machid);
+
+	struct tag *tag;
+	struct tag *tag_base = (struct tag *)CONFIG_SYS_PARAM_ADDR;
+	const char *bootargs = getenv_def("bootargs", CONFIG_BOOTARGS);
+	char *cmdline;
+	linux_tag_start(&tag, tag_base);
+	linux_tag_memory(&tag, &sdram);
+	linux_tag_cmdline_start(&tag, &cmdline);
+	linux_tag_cmdline_add(&cmdline, "%s", bootargs);
+	linux_tag_cmdline_add_space(&cmdline);
+	int first = 1;
+	for_all_mtdparts_of(part, MTDALL) {
+		if(first) {
+			linux_tag_cmdline_add(&cmdline, "mtdparts=%s:0x%llX",
+				MTDALL,part->mtd.size);
+			first = 0;
+		}
+		else
+			linux_tag_cmdline_add(&cmdline, ",0x%llX",
+				part->mtd.size);
+	}
+	linux_tag_cmdline_end(&tag, &cmdline);
+	linux_tag_end(&tag);
+
+	union image_entry_point ep;
+	ret = image_move_unpack(&ms.os_image, &ep);
+	uemd_check_zero(ret, goto err, "image move-unpack failed");
+	printf("Linux tags start 0x%p end 0x%p\n", tag_base, tag);
+	printf("Linux entry 0x%08lX\n", ep.addr);
+
+
+	ep.linux_ep(0, machid, tag_base);
+
 err:
-	uemd_hang();
+	board_hang();
+	return;
+
+err_noconsole:
+	board_hang();
+	return;
 }
-
-
-#ifdef CONFIG_SERIAL_MULTI
-#error Not in UEMD
-#endif
-#ifdef CONFIG_LOGBUFFER
-#error Not in UEMD
-#endif
-#ifdef CONFIG_POST
-#error Not in UEMD
-#endif
-#if defined(CONFIG_CMD_NAND)
-#error Not in UEMD
-#endif
-#if defined(CONFIG_CMD_ONENAND)
-#error Not in UEMD
-#endif
-#ifdef CONFIG_GENERIC_MMC
-#error Not in UEMD
-#endif
-#ifdef CONFIG_HAS_DATAFLASH
-#error Not in UEMD
-#endif
-#ifdef CONFIG_VFD
-#error Not in UEMD
-#endif
-#if defined(CONFIG_API)
-#error Not in UEMD
-#endif
-#if defined(CONFIG_ARCH_MISC_INIT)
-#error Not in UEMD
-#endif
-#if defined(CONFIG_MISC_INIT_R)
-#error Not in UEMD
-#endif
-#ifdef BOARD_LATE_INIT
-#error Not in UEMD
-#endif
-#ifdef CONFIG_BITBANGMII
-#error Not in UEMD
-#endif
 

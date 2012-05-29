@@ -26,7 +26,8 @@ ARCH_DIR = arch/arm
 ARCH_CPPFLAGS = \
 	-DCONFIG_ARM \
 	-D__ARM__ \
-	-I$(ARCH_DIR)/include
+	-I$(ARCH_DIR)/include \
+	-I$(ARCH_DIR)/include-armv
 
 ARCH_CFLAGS = \
 	-ffixed-r8 \
@@ -45,11 +46,12 @@ ARCH_OBJS = \
     $(ARCH_DIR)/lib/_modsi3.o \
     $(ARCH_DIR)/lib/_udivsi3.o \
     $(ARCH_DIR)/lib/_umodsi3.o \
-    $(ARCH_DIR)/lib/bootm.o \
-    $(ARCH_DIR)/lib/cache-cp15.o \
-    $(ARCH_DIR)/lib/cache.o \
     $(ARCH_DIR)/lib/div0.o \
     $(ARCH_DIR)/lib/eabi_compat.o \
     $(ARCH_DIR)/lib/interrupts.o \
-    $(ARCH_DIR)/lib/reset.o
+    $(ARCH_DIR)/lib/setup.o
 
+    #$(ARCH_DIR)/lib/cache-cp15.o \
+    #$(ARCH_DIR)/lib/bootm.o \
+    #$(ARCH_DIR)/lib/reset.o
+    #$(ARCH_DIR)/lib/cache.o \

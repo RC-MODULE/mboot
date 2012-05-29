@@ -11,8 +11,7 @@
 #include <nand.h>
 #include <linux/mtd/mtd.h>
 #include <malloc.h>
-#include <asm/errno.h>
-#include <asm/cache.h>
+#include <errno.h>
 #include <mnand.h>
 
 #ifndef CONFIG_CMD_NAND
@@ -159,12 +158,12 @@ struct nand_flash_dev nand_flash_ids[] = {
 
 static inline unsigned int read_configh(void) 
 {
-    return *(volatile unsigned int*)(CONFIGH_BASE);
+	return *(volatile unsigned int*)(CONFIGH_BASE);
 }
 
 static inline void write_configh(unsigned int v) 
 {
-    *(volatile unsigned int*)(CONFIGH_BASE) = v;
+	*(volatile unsigned int*)(CONFIGH_BASE) = v;
 }
 
 #define MNAND_NAME "mnand"
@@ -234,22 +233,22 @@ enum {
 
 struct mnand_chip {
 
-    void* io;
+	void* io;
 
-    uint32_t state;
+	uint32_t state;
 
-    dma_addr_t dma_handle;
-    size_t dma_size;
-    void* dma_area;
+	dma_addr_t dma_handle;
+	size_t dma_size;
+	void* dma_area;
 
-    uint64_t active_page;
-    struct mtd_info *mtd;
+	uint64_t active_page;
+	struct mtd_info *mtd;
 
-    uint32_t status1;
-    uint32_t status2;
+	uint32_t status1;
+	uint32_t status2;
 
-    uint32_t ecc_corrected;
-    uint32_t ecc_failed;
+	uint32_t ecc_corrected;
+	uint32_t ecc_failed;
 };
 
 static struct mnand_chip g_chip;
@@ -264,8 +263,8 @@ struct write_info g_write_buffer[1024];
 int g_write_pos = 0;
 
 struct page_log {
-    uint32_t address;
-    uint8_t data[2048+64];
+	uint32_t address;
+	uint8_t data[2048+64];
 };
 
 struct page_log g_write_page_log[100];
@@ -282,37 +281,37 @@ int g_read_page_pos = 0;
 #define MNAND_DMA_SIZE 4096
 
 static struct nand_ecclayout g_ecclayout = {
-    .eccbytes = 24,
-    .eccpos = {
-           1, 2, 3, 4, 5, 6, 7, 8,
-           9, 10, 11, 12, 13, 14, 15, 16,
-           17, 18, 19, 20, 21, 22, 23, 24},
-    .oobfree = {
-        {.offset = 25,
-         .length = 39}},
-    .oobavail = 39
+	.eccbytes = 24,
+	.eccpos = {
+		1, 2, 3, 4, 5, 6, 7, 8,
+		9, 10, 11, 12, 13, 14, 15, 16,
+		17, 18, 19, 20, 21, 22, 23, 24},
+	.oobfree = {
+		{.offset = 25,
+			.length = 39}},
+	.oobavail = 39
 };
 
 void mnand_set(uint32_t addr, uint32_t val) 
 {
 #ifdef CONFIG_MNAND_DEBUG_HIST
-    struct write_info wi = { addr, val };
-    
-    if(g_write_pos == 1024)
-        g_write_pos = 0;
+	struct write_info wi = { addr, val };
 
-    g_write_buffer[g_write_pos++] = wi;
+	if(g_write_pos == 1024)
+		g_write_pos = 0;
+
+	g_write_buffer[g_write_pos++] = wi;
 #endif
 
-    TRACE( "nand(0x%08X) <= 0x%08X", (uint32_t)(g_chip.io+addr), val);
-    iowrite32(val, g_chip.io + addr);
+	TRACE( "nand(0x%08X) <= 0x%08X", (uint32_t)(g_chip.io+addr), val);
+	iowrite32(val, g_chip.io + addr);
 }
 
 uint32_t mnand_get(uint32_t addr)
 {
-    uint32_t r = ioread32(g_chip.io + addr);
-    TRACE( "nand(0x%08X) => 0x%08X", (uint32_t)(g_chip.io+addr), r);
-    return r;
+	uint32_t r = ioread32(g_chip.io + addr);
+	TRACE( "nand(0x%08X) => 0x%08X", (uint32_t)(g_chip.io+addr), r);
+	return r;
 } 
 
 void mnand_reg_dump(void)
@@ -321,7 +320,7 @@ void mnand_reg_dump(void)
 
 static inline unsigned char* mnand_get_spare_ecc(size_t i) 
 {
-    uint32_t ecc_offset = g_chip.mtd->writesize + 
+	uint32_t ecc_offset = g_chip.mtd->writesize + 
 		g_ecclayout.eccpos[MNAND_ECC_BYTESPERBLOCK * i];
 	TRACE("ECC block %d offset is 0x%X", i, ecc_offset);
 	return g_chip.dma_area + ecc_offset;
@@ -329,9 +328,9 @@ static inline unsigned char* mnand_get_spare_ecc(size_t i)
 
 static void mnand_get_hardware_ecc(size_t i, unsigned char *ecc) 
 {
-    int data;
-    unsigned char* cdata = (unsigned char*)&data;
-    data = mnand_get(0xD8+i*sizeof(uint32_t));
+	int data;
+	unsigned char* cdata = (unsigned char*)&data;
+	data = mnand_get(0xD8+i*sizeof(uint32_t));
 	ecc[0] = cdata[2];
 	ecc[1] = cdata[1];
 	ecc[2] = cdata[0];
@@ -497,55 +496,55 @@ void mnand_hw_init(void)
 
 static void mnand_prepare_dma_read(size_t bytes)
 {
-    TRACE( "bytes %d", bytes);
+	TRACE( "bytes %d", bytes);
 	if(g_mnand_debug)
 		print_buffer(g_chip.dma_handle + 0x1f0, (void*)(g_chip.dma_handle + 0x1f0), 4, 8, 0);
 
-    mnand_set(0x88, g_chip.dma_handle);
-    mnand_set(0x8C, g_chip.dma_handle + bytes - 1);
-    mnand_set(0x90, 0x80004000);
+	mnand_set(0x88, g_chip.dma_handle);
+	mnand_set(0x8C, g_chip.dma_handle + bytes - 1);
+	mnand_set(0x90, 0x80004000);
 
-    while(mnand_get(0x90) & 0x80000000);
+	while(mnand_get(0x90) & 0x80000000);
 }
 
 static void mnand_prepare_dma_write(size_t bytes)
 {
-    TRACE("bytes=%d", bytes);
+	TRACE("bytes=%d", bytes);
 	if(g_mnand_debug)
 		print_buffer(g_chip.dma_handle + 0x1f0, (void*)(g_chip.dma_handle + 0x1f0), 4, 8, 0);
 
-    mnand_set(0x40, g_chip.dma_handle);
-    mnand_set(0x44, g_chip.dma_handle + bytes - 1);
-    mnand_set(0x48, 0x80001000);
-    mnand_set(0x4C, 0x2000);
+	mnand_set(0x40, g_chip.dma_handle);
+	mnand_set(0x44, g_chip.dma_handle + bytes - 1);
+	mnand_set(0x48, 0x80001000);
+	mnand_set(0x4C, 0x2000);
 
-    while(mnand_get(0x48) & 0x80000000);
+	while(mnand_get(0x48) & 0x80000000);
 
-    mnand_set(0x18, 0x40000001);
+	mnand_set(0x18, 0x40000001);
 }
 
 int mnand_ready(void)
 {
-    return (mnand_get(0) & 0x200) != 0;
+	return (mnand_get(0) & 0x200) != 0;
 }
 
 static int mnand_core_reset(void)
 {
 	int ret = 0;
 
-    g_chip.state = MNAND_RESET;
+	g_chip.state = MNAND_RESET;
 
-    mnand_set(0x08, 0x2C);
+	mnand_set(0x08, 0x2C);
 
 	ret = mnand_poll();
 	if(ret != 0)
 		return ret;
 
-    BUG_ON(!mnand_ready());
+	BUG_ON(!mnand_ready());
 
-    g_chip.state = MNAND_IDLE;
-    
-    return 0; 
+	g_chip.state = MNAND_IDLE;
+
+	return 0; 
 }
 
 static int mnand_core_erase(loff_t off) 
@@ -559,22 +558,22 @@ static int mnand_core_erase(loff_t off)
 	}
 	BUG_ON(!mnand_ready());
 
-    mnand_reset_grabber();
+	mnand_reset_grabber();
 
-    g_chip.state = MNAND_ERASE;
+	g_chip.state = MNAND_ERASE;
 
-    mnand_set(0x8, 0x2b);
-    mnand_set(0xc, (off >> mnand_erasesize_shift(g_chip.mtd)) << 18);
-    
+	mnand_set(0x8, 0x2b);
+	mnand_set(0xc, (off >> mnand_erasesize_shift(g_chip.mtd)) << 18);
+
 	ret = mnand_poll();
 	if(ret < 0) 
 		return ret;
 
-    BUG_ON(!mnand_ready());
+	BUG_ON(!mnand_ready());
 
-    g_chip.state = MNAND_IDLE;
+	g_chip.state = MNAND_IDLE;
 
-    return (mnand_get(0) & NAND_STATUS_FAIL) ? -EIO : 0;
+	return (mnand_get(0) & NAND_STATUS_FAIL) ? -EIO : 0;
 }
 
 static int mnand_core_read_id(size_t bytes) 
@@ -588,23 +587,23 @@ static int mnand_core_read_id(size_t bytes)
 		return -EINVAL;
 	}
 
-    mnand_reset_grabber();
+	mnand_reset_grabber();
 
-    BUG_ON(!mnand_ready());  
-    
-    mnand_prepare_dma_read(bytes);    
+	BUG_ON(!mnand_ready());  
 
-    g_chip.state = MNAND_READID;
+	mnand_prepare_dma_read(bytes);    
 
-    mnand_set(0x08, 0x25);
-    mnand_set(0x0C, bytes << 8);
+	g_chip.state = MNAND_READID;
+
+	mnand_set(0x08, 0x25);
+	mnand_set(0x0C, bytes << 8);
 
 	ret = mnand_poll_read();
 	if(ret != 0)
 		return ret;
 
-    BUG_ON(!mnand_ready());
-    g_chip.state = MNAND_IDLE;
+	BUG_ON(!mnand_ready());
+	g_chip.state = MNAND_IDLE;
 	return 0;
 }
 
@@ -1036,7 +1035,7 @@ static int mnand_core_read(loff_t off)
 	size_t failed = 0;
 	int ret;
 
-    if(g_chip.state != MNAND_IDLE) {
+	if(g_chip.state != MNAND_IDLE) {
 		ERR("flash is in error state");
 		return -EINVAL;
 	}
@@ -1144,44 +1143,44 @@ static int mnand_core_read(loff_t off)
 static int mnand_core_write(loff_t off) 
 {
 	int ret;
-    if(g_chip.state != MNAND_IDLE) {
+	if(g_chip.state != MNAND_IDLE) {
 		ERR("flash is in error state");
 		return -EINVAL;
 	}
-    BUG_ON(!mnand_ready());
+	BUG_ON(!mnand_ready());
 
-    mnand_reset_grabber();
+	mnand_reset_grabber();
 
-    g_chip.active_page = -1;
+	g_chip.active_page = -1;
 
 	cache_flush();
 
-    mnand_prepare_dma_write(g_chip.mtd->writesize + g_chip.mtd->oobsize);
+	mnand_prepare_dma_write(g_chip.mtd->writesize + g_chip.mtd->oobsize);
 
-    g_chip.state = MNAND_WRITE;
+	g_chip.state = MNAND_WRITE;
 
 #ifdef CONFIG_MNAND_DEBUG_HIST
-    g_write_page_log[g_write_page_pos].address = off;
-    memcpy(g_write_page_log[g_write_page_pos].data, g_chip.dma_area, 2048+64);
+	g_write_page_log[g_write_page_pos].address = off;
+	memcpy(g_write_page_log[g_write_page_pos].data, g_chip.dma_area, 2048+64);
 
-    ++g_write_page_pos;
+	++g_write_page_pos;
 
-    if((g_write_page_pos) == sizeof(g_write_page_log)/sizeof(g_write_page_log[0]))
-        g_write_page_pos = 0;
+	if((g_write_page_pos) == sizeof(g_write_page_log)/sizeof(g_write_page_log[0]))
+		g_write_page_pos = 0;
 #endif
 
-    mnand_set(0x08, 0x27);
-    mnand_set(0x0C, (off >> mnand_writesize_shift(g_chip.mtd)) << 12);
-    BUG_ON(mnand_get(0x0C) != (off >> mnand_writesize_shift(g_chip.mtd)) << 12);
-    
+	mnand_set(0x08, 0x27);
+	mnand_set(0x0C, (off >> mnand_writesize_shift(g_chip.mtd)) << 12);
+	BUG_ON(mnand_get(0x0C) != (off >> mnand_writesize_shift(g_chip.mtd)) << 12);
+
 	ret = mnand_poll();
 	if(ret<0)
 		return ret;
 
-    BUG_ON(!mnand_ready());
-    g_chip.state = MNAND_IDLE;
-    
-    return (mnand_get(0) & NAND_STATUS_FAIL) ? -EIO : 0;
+	BUG_ON(!mnand_ready());
+	g_chip.state = MNAND_IDLE;
+
+	return (mnand_get(0) & NAND_STATUS_FAIL) ? -EIO : 0;
 }
 
 static int mnand_read_id(struct mtd_info *mtd) 
@@ -1192,7 +1191,7 @@ static int mnand_read_id(struct mtd_info *mtd)
 	struct nand_flash_dev def_type = CONFIG_MNAND_DEFAULT_TYPE;
 	struct nand_flash_dev* type = &def_type;
 
-    if(g_chip.state != MNAND_IDLE) {
+	if(g_chip.state != MNAND_IDLE) {
 		ERR("flash is in error state");
 		return -EINVAL;
 	}
@@ -1240,7 +1239,7 @@ static int mnand_read_id(struct mtd_info *mtd)
 		ERR("WARNING: unsupported flash. This driver supports writesize 2048 erasesize 128K only");
 	}
 
-    return 0;
+	return 0;
 }
 
 
@@ -1250,139 +1249,139 @@ static int mnand_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	MARK();
 
-    TRACE( "addr=0x%08llX, len=%lld", instr->addr, instr->len);
-    
-    if(instr->addr >= g_chip.mtd->size ||
-        instr->addr + instr->len > g_chip.mtd->size  ||
-        instr->len != g_chip.mtd->erasesize)
-            return -EINVAL;
+	TRACE( "addr=0x%08llX, len=%lld", instr->addr, instr->len);
 
-    err = mnand_core_erase(instr->addr);
+	if(instr->addr >= g_chip.mtd->size ||
+		instr->addr + instr->len > g_chip.mtd->size  ||
+		instr->len != g_chip.mtd->erasesize)
+		return -EINVAL;
 
-    if(err) {
-        printk(KERN_ERR "erase failed with %d at 0x%08llx\n", err, instr->addr);
-        instr->state = MTD_ERASE_FAILED;
-        instr->fail_addr = instr->addr;    
-    }
-    else {
-        instr->state = MTD_ERASE_DONE;
-    }
-    
-    /*mtd_erase_callback(instr);*/
-   
-    return 0;
+	err = mnand_core_erase(instr->addr);
+
+	if(err) {
+		printk(KERN_ERR "erase failed with %d at 0x%08llx\n", err, instr->addr);
+		instr->state = MTD_ERASE_FAILED;
+		instr->fail_addr = instr->addr;    
+	}
+	else {
+		instr->state = MTD_ERASE_DONE;
+	}
+
+	/*mtd_erase_callback(instr);*/
+
+	return 0;
 }
 
 #define PAGE_ALIGNED(x) (((x) & (g_chip.mtd->writesize-1)) ==0)
 
 static uint8_t* mnand_fill_oob(uint8_t *oob, struct mtd_oob_ops *ops)
 {
-    size_t len = ops->ooblen;
-        
-    switch(ops->mode) {    
-    case MTD_OOB_PLACE:
-    case MTD_OOB_RAW:
-        memcpy(g_chip.dma_area + g_chip.mtd->writesize + ops->ooboffs, oob, len);
-        return oob + len;    
-    case MTD_OOB_AUTO: {
-        struct nand_oobfree *free = g_chip.mtd->ecclayout->oobfree;
-        uint32_t boffs = 0, woffs = ops->ooboffs;
-        size_t bytes = 0;
-    
-        for(; free->length && len; free++, len -= bytes) {
-            /* Write request not from offset 0 ? */
-            if (unlikely(woffs)) {
-                if (woffs >= free->length) {
-                    woffs -= free->length;
-                    continue;
-                }
-                boffs = free->offset + woffs;
-                bytes = min_t(size_t, len, (free->length - woffs));
-                woffs = 0;
-            } else {
-                bytes = min_t(size_t, len, free->length);
-                boffs = free->offset;
-            }
-            memcpy(g_chip.dma_area + g_chip.mtd->writesize + boffs, oob, bytes);
-            oob += bytes;
-        }
-        return oob;
-    }
-    default:
-        BUG();
-    }
-    return NULL;
+	size_t len = ops->ooblen;
+
+	switch(ops->mode) {    
+		case MTD_OOB_PLACE:
+		case MTD_OOB_RAW:
+			memcpy(g_chip.dma_area + g_chip.mtd->writesize + ops->ooboffs, oob, len);
+			return oob + len;    
+		case MTD_OOB_AUTO: {
+			struct nand_oobfree *free = g_chip.mtd->ecclayout->oobfree;
+			uint32_t boffs = 0, woffs = ops->ooboffs;
+			size_t bytes = 0;
+
+			for(; free->length && len; free++, len -= bytes) {
+				/* Write request not from offset 0 ? */
+				if (unlikely(woffs)) {
+					if (woffs >= free->length) {
+						woffs -= free->length;
+						continue;
+					}
+					boffs = free->offset + woffs;
+					bytes = min_t(size_t, len, (free->length - woffs));
+					woffs = 0;
+				} else {
+					bytes = min_t(size_t, len, free->length);
+					boffs = free->offset;
+				}
+				memcpy(g_chip.dma_area + g_chip.mtd->writesize + boffs, oob, bytes);
+				oob += bytes;
+			}
+			return oob;
+		}
+		default:
+			BUG();
+	}
+	return NULL;
 }
 
 static uint8_t* mnand_transfer_oob(uint8_t *oob, struct mtd_oob_ops *ops, size_t len)
 {
-    switch(ops->mode) {
+	switch(ops->mode) {
 
-    case MTD_OOB_PLACE:
-    case MTD_OOB_RAW:
-        TRACE( "raw transfer");
-        memcpy(oob, g_chip.dma_area + g_chip.mtd->writesize + ops->ooboffs, len);
-        return oob + len;
+		case MTD_OOB_PLACE:
+		case MTD_OOB_RAW:
+			TRACE( "raw transfer");
+			memcpy(oob, g_chip.dma_area + g_chip.mtd->writesize + ops->ooboffs, len);
+			return oob + len;
 
-    case MTD_OOB_AUTO: {
-        struct nand_oobfree *free = g_chip.mtd->ecclayout->oobfree;
-        uint32_t boffs = 0, roffs = ops->ooboffs;
-        size_t bytes = 0;
-    
-        for(; free->length && len; free++, len -= bytes) {
-            /* Read request not from offset 0 ? */
-            if (unlikely(roffs)) {
-                if (roffs >= free->length) {
-                    roffs -= free->length;
-                    continue;
-                }
-                boffs = free->offset + roffs;
-                bytes = min_t(size_t, len,
-                          (free->length - roffs));
-                roffs = 0;
-            } else {
-                bytes = min_t(size_t, len, free->length);
-                boffs = free->offset;
-            }
-            memcpy(oob, g_chip.dma_area + g_chip.mtd->writesize + boffs, bytes);
-            oob += bytes;
-        }
-        return oob;
-    }
-    default:
-        BUG();
+		case MTD_OOB_AUTO: {
+			struct nand_oobfree *free = g_chip.mtd->ecclayout->oobfree;
+			uint32_t boffs = 0, roffs = ops->ooboffs;
+			size_t bytes = 0;
+
+			for(; free->length && len; free++, len -= bytes) {
+				/* Read request not from offset 0 ? */
+				if (unlikely(roffs)) {
+					if (roffs >= free->length) {
+						roffs -= free->length;
+						continue;
+					}
+					boffs = free->offset + roffs;
+					bytes = min_t(size_t, len,
+						(free->length - roffs));
+					roffs = 0;
+				} else {
+					bytes = min_t(size_t, len, free->length);
+					boffs = free->offset;
+				}
+				memcpy(oob, g_chip.dma_area + g_chip.mtd->writesize + boffs, bytes);
+				oob += bytes;
+			}
+			return oob;
+		}
+		default:
+			BUG();
     }
     return NULL;
 }
 
 static int mnand_write_oob(struct mtd_info* mtd, loff_t to, struct mtd_oob_ops* ops) 
 {
-    uint8_t* data = ops->datbuf;
-    uint8_t* dataend = data ? data + ops->len : 0;
-    uint8_t* oob = ops->oobbuf;
-    uint8_t* oobend = oob ? oob + ops->ooblen : 0;
+	uint8_t* data = ops->datbuf;
+	uint8_t* dataend = data ? data + ops->len : 0;
+	uint8_t* oob = ops->oobbuf;
+	uint8_t* oobend = oob ? oob + ops->ooblen : 0;
 
-    int err;
-    
-    TRACE("to=0x%08lX, ops.mode=%d, ops.len=%d",
+	int err;
+
+	TRACE("to=0x%08lX, ops.mode=%d, ops.len=%d",
 		as32(to), ops->mode, ops->len);
 	TRACE("ops.ooblen=%d ops.ooboffs=0x%X data=%p",
-        ops->ooblen, ops->ooboffs, data);
-    TRACE("oob=[%p..%p]", oob, oobend);
+		ops->ooblen, ops->ooboffs, data);
+	TRACE("oob=[%p..%p]", oob, oobend);
 
-    ops->retlen = 0;    
-    ops->oobretlen = 0;
+	ops->retlen = 0;    
+	ops->oobretlen = 0;
 
-    if(to >= g_chip.mtd->size || !PAGE_ALIGNED(to) || !PAGE_ALIGNED(dataend - data)) {
-        printk(KERN_ERR "Can't write non page aligned data to 0x%08lX len:0x%08x\n", 
+	if(to >= g_chip.mtd->size || !PAGE_ALIGNED(to) || !PAGE_ALIGNED(dataend - data)) {
+		printk(KERN_ERR "Can't write non page aligned data to 0x%08lX len:0x%08x\n", 
 			as32(to), ops->len);
-        return -EINVAL;
-    }
-    
-    if(ops->ooboffs > mtd->oobsize) {
-        printk(KERN_ERR "oob > mtd->oobsize" );
-        return -EINVAL;
-    }
+		return -EINVAL;
+	}
+
+	if(ops->ooboffs > mtd->oobsize) {
+		printk(KERN_ERR "oob > mtd->oobsize" );
+		return -EINVAL;
+	}
 
 	err = 0;
 	for(;(data !=dataend) || (oob !=oobend);) {
@@ -1411,40 +1410,40 @@ static int mnand_write_oob(struct mtd_info* mtd, loff_t to, struct mtd_oob_ops* 
 	}
 
 
-    if(err) {
-        printk("MNAND core write returned error: off 0x%08lx err %d\n",
+	if(err) {
+		printk("MNAND core write returned error: off 0x%08lx err %d\n",
 			as32(to), err);
-        return err;
-    }
+		return err;
+	}
 
-    ops->retlen = ops->len;
-    ops->oobretlen = ops->ooblen;
+	ops->retlen = ops->len;
+	ops->oobretlen = ops->ooblen;
 
-    return err;
+	return err;
 }
 
 static int mnand_read_oob(struct mtd_info* mtd, loff_t from, struct mtd_oob_ops* ops) 
 {
-    uint8_t* data = ops->datbuf;
-    uint8_t* oob = ops->oobbuf;
-    int err;
+	uint8_t* data = ops->datbuf;
+	uint8_t* oob = ops->oobbuf;
+	int err;
 
-    uint8_t* dataend = data + ops->len;
-    uint8_t* oobend = oob ? oob + ops->ooblen : 0;
+	uint8_t* dataend = data + ops->len;
+	uint8_t* oobend = oob ? oob + ops->ooblen : 0;
 
-    TRACE("from=0x%08lX, ops.mode=%d, ops.len=%d",
+	TRACE("from=0x%08lX, ops.mode=%d, ops.len=%d",
 		as32(from), ops->mode, ops->len);
 	TRACE("ops.ooblen=%d ops.ooboffs=0x%X data=%p",
-        ops->ooblen, ops->ooboffs, data);
-    TRACE("oob=[%p..%p]", oob, oobend);
+		ops->ooblen, ops->ooboffs, data);
+	TRACE("oob=[%p..%p]", oob, oobend);
 
-    if(ops->len != 0 && data == 0) {
-        ops->len = 0;
-        dataend = 0;
-    }
+	if(ops->len != 0 && data == 0) {
+		ops->len = 0;
+		dataend = 0;
+	}
 
-    ops->retlen = 0;
-    ops->oobretlen = 0;
+	ops->retlen = 0;
+	ops->oobretlen = 0;
 
 	for(;;) {
 		err = mnand_core_read(from);        
@@ -1497,78 +1496,78 @@ static int mnand_read_oob(struct mtd_info* mtd, loff_t from, struct mtd_oob_ops*
 	ops->retlen = ops->len;
 	ops->oobretlen = ops->ooblen;
 
-    return err;
+	return err;
 }
 
 static int mnand_isbad(struct mtd_info* mtd, loff_t off) 
 {
-    uint8_t f=0;
-    int err;
-    struct mtd_oob_ops ops = {
-        .mode = MTD_OOB_RAW,
-        .ooblen = 1,
-        .oobbuf = &f,
-        .ooboffs = 0
-    };
+	uint8_t f=0;
+	int err;
+	struct mtd_oob_ops ops = {
+		.mode = MTD_OOB_RAW,
+		.ooblen = 1,
+		.oobbuf = &f,
+		.ooboffs = 0
+	};
 
-    TRACE("offset 0x%08lX", as32(off));
+	TRACE("offset 0x%08lX", as32(off));
 
-    err = mnand_read_oob(mtd, off, &ops);
+	err = mnand_read_oob(mtd, off, &ops);
 
-    TRACE("err %d, data=0x%02X", err, f);
-    
-    return ((err == 0 || err == -EUCLEAN) && f == 0xFF) ? 0 : 1;
+	TRACE("err %d, data=0x%02X", err, f);
+
+	return ((err == 0 || err == -EUCLEAN) && f == 0xFF) ? 0 : 1;
 }
 
 static int mnand_markbad(struct mtd_info* mtd, loff_t off) 
 {
-    uint8_t f=0;
-    struct mtd_oob_ops ops = {
-        .mode = MTD_OOB_RAW,
-        .ooblen = 1,
-        .oobbuf = &f,
-        .ooboffs = 0
-    };
+	uint8_t f=0;
+	struct mtd_oob_ops ops = {
+		.mode = MTD_OOB_RAW,
+		.ooblen = 1,
+		.oobbuf = &f,
+		.ooboffs = 0
+	};
 
-    TRACE("offset 0x%08lX", as32(off));
+	TRACE("offset 0x%08lX", as32(off));
 
-    return mnand_write_oob(mtd, off, &ops);
+	return mnand_write_oob(mtd, off, &ops);
 }
 
 
 static int mnand_write(struct mtd_info* mtd, loff_t off, size_t len, 
 	size_t* retlen, const u_char* buf) 
 {
-    struct mtd_oob_ops ops = {
-        .datbuf = (uint8_t*)buf,
-        .len = len
-    };
-    int err;
+	struct mtd_oob_ops ops = {
+		.datbuf = (uint8_t*)buf,
+		.len = len
+	};
+	int err;
 
-    TRACE("off=0x%08lX, len=%d", as32(off), len);
+	TRACE("off=0x%08lX, len=%d", as32(off), len);
 
-    err = mnand_write_oob(mtd, off, &ops);
-    *retlen = ops.retlen;
-    return err;
+	err = mnand_write_oob(mtd, off, &ops);
+	*retlen = ops.retlen;
+	return err;
 }
 
 static int mnand_read(struct mtd_info* mtd, loff_t off, size_t len, 
 	size_t* retlen, u_char* buf) 
 {
-    struct mtd_oob_ops ops = {
-        .datbuf = buf,
-        .len = len,
-    };
-    int err;
+	struct mtd_oob_ops ops = {
+		.datbuf = buf,
+		.len = len,
+	};
+	int err;
 
-    TRACE("off=0x%08lX, len=%d", as32(off), len);
+	TRACE("off=0x%08lX, len=%d", as32(off), len);
 
-    if(buf == 0)
-        return -EINVAL;
+	if(buf == 0)
+		return -EINVAL;
 
-    err = mnand_read_oob(mtd, off, &ops);
-    *retlen = ops.retlen;
-    return err;
+	err = mnand_read_oob(mtd, off, &ops);
+	*retlen = ops.retlen;
+	return err;
 }
 
 /* MNAND shouldn't use ENV vars 
@@ -1577,43 +1576,43 @@ static int mnand_read(struct mtd_info* mtd, loff_t off, size_t len,
  */
 int mnand_init(struct mtd_info* mtd) 
 {
-    int ret;
+	int ret;
 	uint32_t base = CONFIG_MNAND_BASE;
 
 	MARK();
 
-    memset(&g_chip, 0, sizeof(struct mnand_chip));
+	memset(&g_chip, 0, sizeof(struct mnand_chip));
 
-    g_chip.active_page = -1;
+	g_chip.active_page = -1;
 	g_chip.io = (void*)base;
 
-    g_chip.dma_area = memalign(0x100, MNAND_DMA_SIZE);
-    if(!g_chip.dma_area) {
-        ret = -ENOMEM;
+	g_chip.dma_area = memalign(0x100, MNAND_DMA_SIZE);
+	if(!g_chip.dma_area) {
+		ret = -ENOMEM;
 		ERR("Unable to allocate memory. Check malloc pool settings.");
-        goto out;
-    }
+		goto out;
+	}
 	g_chip.dma_handle = (unsigned int)g_chip.dma_area;
 
 	TRACE("Dma buffer allocated: 0x%08lX", (unsigned long)g_chip.dma_area);
-    memset(g_chip.dma_area, 0xFF, MNAND_DMA_SIZE);
+	memset(g_chip.dma_area, 0xFF, MNAND_DMA_SIZE);
 
 	g_chip.mtd = mtd;
-    mtd->type = MTD_NANDFLASH;
-    mtd->flags = MTD_WRITEABLE;
-    mtd->erase = mnand_erase;
-    mtd->read = mnand_read;
-    mtd->write = mnand_write;
-    mtd->block_isbad = mnand_isbad;
-    mtd->block_markbad = mnand_markbad;
-    mtd->read_oob = mnand_read_oob;
-    mtd->write_oob = mnand_write_oob;
-    mtd->ecclayout = &g_ecclayout;
+	mtd->type = MTD_NANDFLASH;
+	mtd->flags = MTD_WRITEABLE;
+	mtd->erase = mnand_erase;
+	mtd->read = mnand_read;
+	mtd->write = mnand_write;
+	mtd->block_isbad = mnand_isbad;
+	mtd->block_markbad = mnand_markbad;
+	mtd->read_oob = mnand_read_oob;
+	mtd->write_oob = mnand_write_oob;
+	mtd->ecclayout = &g_ecclayout;
 	mtd->priv = &g_chip;
 
 	mnand_reset(mtd);
 
-    ret = mnand_read_id(mtd);
+	ret = mnand_read_id(mtd);
 	if(ret != 0) {
 		ERR("Unable to read id: %d", ret);
 		goto err_dma;
@@ -1626,7 +1625,7 @@ int mnand_init(struct mtd_info* mtd)
 		goto err_dma;
 	}
 #endif
-    return 0;
+	return 0;
 
 err_dma:
 	free(g_chip.dma_area);
@@ -1640,9 +1639,9 @@ int mnand_reset(struct mtd_info *mtd)
 		ERR("not a mnand device");
 		return -1;
 	}
-    mnand_hw_init();
-    mnand_reset_grabber();
-    mnand_core_reset();
+	mnand_hw_init();
+	mnand_reset_grabber();
+	mnand_core_reset();
 	return 0;
 }
 

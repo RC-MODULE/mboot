@@ -21,41 +21,35 @@
  * MA 02111-1307 USA
  */
 
-/*
- * Misc boot support
- */
 #include <common.h>
 #include <command.h>
-#include <net.h>
 
 /* Allow ports to override the default behavior */
-__attribute__((weak))
 unsigned long do_go_exec (ulong (*entry)(int, char * const []), int argc, char * const argv[])
 {
-	return entry (argc, argv);
+	return entry(argc, argv);
 }
 
-int do_go (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_go (struct cmd_ctx *ctx, int argc, char * const argv[])
 {
-	ulong	addr, rc;
-	int     rcode = 0;
+	unsigned long addr, rc;
 
 	if (argc < 2)
-		return cmd_usage(cmdtp);
+		return cmd_usage(ctx->cmdtp);
 
 	addr = simple_strtoul(argv[1], NULL, 16);
 
-	printf ("## Starting application at 0x%08lX ...\n", addr);
+	printf ("GO starting application: addr 0x%08lX\n", addr);
 
 	/*
 	 * pass address parameter as argv[0] (aka command name),
 	 * and all remaining args
 	 */
-	rc = do_go_exec ((void *)addr, argc - 1, argv + 1);
-	if (rc != 0) rcode = 1;
-
-	printf ("## Application terminated, rc = 0x%lX\n", rc);
-	return rcode;
+	rc = do_go_exec((void *)addr, argc-1, argv+1);
+	if(rc != 0) {
+		printf ("GO application code is non-zero: code 0x%lX\n", rc);
+	}
+	return rc;
 }
 
 /* -------------------------------------------------------------------- */
@@ -67,10 +61,3 @@ U_BOOT_CMD(
 	"      passing 'arg' as arguments"
 );
 
-extern int do_reset (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
-
-U_BOOT_CMD(
-	reset, 1, 0,	do_reset,
-	"Perform RESET of the CPU",
-	""
-);

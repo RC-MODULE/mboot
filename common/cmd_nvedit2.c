@@ -89,6 +89,8 @@ int get_env_id (void)
 	return g_env_id;
 }
 
+/* Initialises environment. defs is a NULL-terminated table of default env. priv
+ * will be passed to the ops without changes. */
 int env_init(struct env_ops *ops, struct env_var *defs, void *priv)
 {
 	int ret;
@@ -296,7 +298,7 @@ char *getenv (const char *rname)
 	return NULL;
 }
 
-static int do_env_print(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_env_print(struct cmd_ctx *ctx, int argc, char * const argv[])
 {
 	char *i;
 	int j;
@@ -326,13 +328,13 @@ U_BOOT_CMD(
 	"    - print value of environment variable 'name'"
 );
 
-static int do_env_set(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_env_set(struct cmd_ctx *ctx, int argc, char * const argv[])
 {
 	int ret;
 	switch(argc) {
 		case 2: ret = setenv(argv[1], NULL); break;
 		case 3: ret = setenv(argv[1], argv[2]); break;
-		return cmd_usage(cmdtp);
+		return cmd_usage(ctx->cmdtp);
 	}
 	if(ret < 0) {
 		printf("ENV setenv failed: red %d\n", ret);
@@ -344,13 +346,13 @@ static int do_env_set(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 U_BOOT_CMD(
 	setenv, 3, 0, do_env_set,
 	"set environment variables",
-	"NAME VALUE\n"
+	"setenv NAME VALUE\n"
 	"    - sets environment variable NAME'\n"
 	"setenv NAME\n"
 	"    - delete value NAME"
 );
 
-int do_env_save (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_env_save (struct cmd_ctx* ctx, int argc, char * const argv[])
 {
 	if(g_ops == NULL || g_ops->writeenv == NULL) {
 		printf("writeenv handler is not defined\n");

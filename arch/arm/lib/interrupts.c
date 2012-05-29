@@ -36,7 +36,7 @@
  */
 
 #include <common.h>
-#include <asm/proc-armv/ptrace.h>
+#include <asm/proc/ptrace.h>
 
 #ifdef CONFIG_USE_IRQ
 #error Not in UEMD
@@ -51,6 +51,7 @@ void enable_interrupts (void)
 {
 	return;
 }
+
 int disable_interrupts (void)
 {
 	return 0;
@@ -58,7 +59,7 @@ int disable_interrupts (void)
 
 static void bad_mode (void)
 {
-	hang();
+	board_hang();
 }
 
 void show_regs (struct pt_regs *regs)

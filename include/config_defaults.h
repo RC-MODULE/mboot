@@ -11,9 +11,6 @@
 
 /* Support bootm-ing different OSes */
 #define CONFIG_BOOTM_LINUX 1
-#define CONFIG_BOOTM_NETBSD 1
-#define CONFIG_BOOTM_OSE 1
-#define CONFIG_BOOTM_RTEMS 1
 
 #define CONFIG_GZIP 1
 #define CONFIG_ZLIB 1

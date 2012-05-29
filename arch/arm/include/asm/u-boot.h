@@ -38,17 +38,18 @@
 
 #include <asm/types.h>
 #include <config.h>
+#include <memregion.h>
 
-typedef	struct {
-	u32 start;
-	u32 size;
-} bi_dram_t;
+/*typedef	struct {*/
+/*u32 start;*/
+/*u32 size;*/
+/*} bi_dram_t;*/
 
 typedef struct bd_info {
-    unsigned long	bi_ip_addr;	/* IP Address */
-    u32	        bi_arch_number;	/* unique id for this board */
-    u32	        bi_boot_params;	/* where this board expects params */
-	bi_dram_t	bi_dram[CONFIG_NR_DRAM_BANKS];
+	unsigned long	bi_ip_addr;	/* IP Address */
+	/*u32	        bi_arch_number;	*//* unique id for this board */
+	/*u32	        bi_boot_params;	*//* where this board expects params */
+	/*bi_dram_t	bi_dram[CONFIG_NR_DRAM_BANKS];*/
 } bd_t;
 
 #endif	/* _U_BOOT_H_ */

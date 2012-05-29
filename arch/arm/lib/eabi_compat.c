@@ -13,8 +13,8 @@
 
 int raise (int signum)
 {
-	printf("raise: Signal # %d caught\n", signum);
-	return 0;
+    printf("raise: Signal # %d caught\n", signum);
+    return 0;
 }
 
 /* Dummy function to avoid linker complaints */

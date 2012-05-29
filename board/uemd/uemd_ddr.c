@@ -212,7 +212,7 @@ void uemd_em_init(void)
 /* 
  * Initializes EM0 and EM1, checks EM0
  * Uses timers, uses printf */
-int uemd_em_init_check(bi_dram_t *pdram, int nbank)
+int uemd_em_init_check(struct memregion *reg)
 {
 	int i, em0_size;
 
@@ -234,11 +234,8 @@ int uemd_em_init_check(bi_dram_t *pdram, int nbank)
 		return -1;
 	}
 
-	for(i=0; i<MIN(nbank,1); i++) {
-		pdram[i].start = PHYS_EM0;
-		pdram[i].size  = em0_size;
-	}
-
+	reg->start = PHYS_EM0;
+	reg->end = reg->start + em0_size;
 	return 0;
 }
 

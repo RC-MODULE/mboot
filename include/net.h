@@ -97,7 +97,7 @@ struct eth_device {
 	int iobase;
 	int state;
 
-	int  (*init) (struct eth_device*, bd_t*);
+	int  (*init) (struct eth_device*);
 	int  (*send) (struct eth_device*, volatile void* packet, int length);
 	int  (*recv) (struct eth_device*);
 	void (*halt) (struct eth_device*);
@@ -109,7 +109,7 @@ struct eth_device {
 	void *priv;
 };
 
-extern int eth_initialize(bd_t *bis);	/* Initialize network subsystem */
+extern int eth_initialize(void);	/* Initialize network subsystem */
 extern int eth_register(struct eth_device* dev);/* Register network device */
 extern void eth_try_another(int first_restart);	/* Change the device */
 #ifdef CONFIG_NET_MULTI
@@ -124,8 +124,10 @@ extern int eth_getenv_enetaddr(char *name, uchar *enetaddr);
 extern int eth_setenv_enetaddr(char *name, const uchar *enetaddr);
 extern int eth_getenv_enetaddr_by_index(int index, uchar *enetaddr);
 
-extern int usb_eth_initialize(bd_t *bi);
-extern int eth_init(bd_t *bis);			/* Initialize the device */
+/*extern int usb_eth_initialize(bd_t *bi);*/
+extern int usb_eth_initialize(void);
+/*extern int eth_init(bd_t *bis);			*//* Initialize the device */
+extern int eth_init(void);			/* Initialize the device */
 extern int eth_send(volatile void *packet, int length);	   /* Send a packet */
 
 #ifdef CONFIG_API

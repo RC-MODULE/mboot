@@ -30,14 +30,12 @@
  * at the end. Deleting an entry shifts the remaining entries to the front.
  * Replacing an entry is a combination of deleting the old value and adding the
  * new one.
- *
- * The environment is preceeded by a 32 bit CRC over the data part.
  */
 
 struct env_ops {
-	/* Reads the len bytes of env. Handler may shorten the len. */
+	/* Read len bytes into str. Handler may shorten the len. */
 	int (*readenv) (char* str, size_t *len, void *priv);
-	/* Write len bytes of env to store. */
+	/* Write len bytes to the store. */
 	int (*writeenv) (const char* str, size_t len, void *priv);
 };
 
@@ -51,7 +49,7 @@ struct env_var {
 
 int env_init(struct env_ops *ops, struct env_var *defs, void *priv);
 
-int	setenv(const char *n, const char *v);
+int setenv(const char *n, const char *v);
 
 char *getenv(const char *);
 
@@ -61,7 +59,49 @@ static inline const char *getenv_def(const char *name, const char *def)
 	return val != NULL ? val : def;
 }
 
-int	saveenv(void);
+int saveenv(void);
+
+int get_env_id (void);
+
+static inline void getenv_ul(const char *name, ulong *res, ulong def)
+{
+	char *val = getenv(name);
+	*res = (val ? simple_strtoul(val, NULL, 0) : def);
+}
+
+static inline void getenv_ull(const char *name, loff_t *res, loff_t def)
+{
+	char *val = getenv(name);
+	*res = (val ? simple_strtoull(val, NULL, 0) : def);
+}
+
+#define MAXPATH (128+1)
+
+static inline void getenv_s(const char *name, char *pval, const char* def)
+{
+	const char *val = getenv(name);
+	if(!val)
+		strncpy_s(pval, def, MAXPATH);
+	else
+		strncpy_s(pval, val, MAXPATH);
+}
+
+#define setenv_s setenv
+
+static inline void setenv_ul(const char *name, const char* fmt, ulong val)
+{
+	char buf[12];
+	sprintf(buf, fmt, val);
+	setenv(name, buf);
+}
+
+static inline void setenv_ull(const char *name, const char* fmt, loff_t val)
+{
+	char buf[24];
+	sprintf(buf, fmt, val);
+	setenv(name, buf);
+}
+
 
 
 #if defined(CONFIG_ENV_IS_IN_FLASH)

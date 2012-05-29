@@ -1,7 +1,7 @@
 #ifndef UEMD_H
 #define UEMD_H
 
-#include <asm/u-boot.h>
+#include <memregion.h>
 
 struct uemd_nand_state {
     int size;
@@ -46,7 +46,8 @@ struct uemd_otp
 void uemd_init(struct uemd_otp *otp);
 
 void uemd_em_init(void);
-int uemd_em_init_check(bi_dram_t *pdram, int nbank);
+
+int uemd_em_init_check(struct memregion *reg);
 
 void uemd_timer_init(void);
 

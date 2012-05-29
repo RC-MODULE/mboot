@@ -27,13 +27,13 @@
 #include <common.h>
 #include <command.h>
 
-int do_sleep (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_sleep (struct cmd_ctx *ctx, int argc, char * const argv[])
 {
 	ulong start = get_timer(0);
 	ulong delay;
 
 	if (argc != 2)
-		return cmd_usage(cmdtp);
+		return cmd_usage(ctx->cmdtp);
 
 	delay = simple_strtoul(argv[1], NULL, 10) * CONFIG_SYS_HZ;
 

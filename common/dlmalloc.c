@@ -947,8 +947,6 @@ void malloc_stats();
 #endif
 #endif	/* DEBUG */
 
-DECLARE_GLOBAL_DATA_PTR;
-
 /*
   Emulation of sbrk for WIN32
   All code within the ifdef WIN32 is untested by me.
@@ -1490,17 +1488,6 @@ static mbinptr av_[NAV * 2 + 2] = {
  IAV(112), IAV(113), IAV(114), IAV(115), IAV(116), IAV(117), IAV(118), IAV(119),
  IAV(120), IAV(121), IAV(122), IAV(123), IAV(124), IAV(125), IAV(126), IAV(127)
 };
-
-#ifdef CONFIG_NEEDS_MANUAL_RELOC
-void malloc_bin_reloc (void)
-{
-	unsigned long *p = (unsigned long *)(&av_[2]);
-	int i;
-	for (i=2; i<(sizeof(av_)/sizeof(mbinptr)); ++i) {
-		*p++ += gd->reloc_off;
-	}
-}
-#endif
 
 ulong mem_malloc_start = 0;
 ulong mem_malloc_end = 0;

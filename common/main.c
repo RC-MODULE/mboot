@@ -60,14 +60,14 @@ int main_process_command(struct main_state *s)
 	}
 	else {
 		if (len > 0) {
-			ret = run_command(console_buffer, 0, &s->want_repeat);
+			ret = run_command(s, console_buffer, 0, &s->want_repeat);
 			if(ret == 0 && s->want_repeat) {
 				strncpy_s(lastcommand, console_buffer, CONFIG_SYS_CBSIZE);
 			}
 		}
 		else { /*len == 0 */
 			if(s->want_repeat) {
-				ret = run_command(lastcommand, 1, &s->want_repeat);
+				ret = run_command(s, lastcommand, 1, &s->want_repeat);
 				if(ret != 0) {
 					s->want_repeat = 0;
 				}
@@ -75,7 +75,7 @@ int main_process_command(struct main_state *s)
 		}
 	}
 
-	/* Ignore possible command errors for now */
+	/* Ignore any errors for now */
 	return 0;
 }
 
@@ -221,8 +221,6 @@ static char * delete_char (char *buffer, char *p, int *colp, int *np, int plen)
 	return (p);
 }
 
-/****************************************************************************/
-
 int parse_line (char *line, char *argv[])
 {
 	int nargs = 0;
@@ -255,12 +253,12 @@ int parse_line (char *line, char *argv[])
 		if (*line == '\0') {	/* end of line, no more args	*/
 			argv[nargs] = NULL;
 #ifdef DEBUG_PARSER
-		printf ("parse_line: nargs=%d\n", nargs);
+			printf ("parse_line: nargs=%d\n", nargs);
 #endif
 			return (nargs);
 		}
 
-		*line++ = '\0';		/* terminate current arg	 */
+		*line++ = '\0';	/* terminate current arg */
 	}
 
 	printf ("** Too many args (max. %d) **\n", CONFIG_SYS_MAXARGS);
@@ -268,12 +266,10 @@ int parse_line (char *line, char *argv[])
 #ifdef DEBUG_PARSER
 	printf ("parse_line: nargs=%d\n", nargs);
 #endif
-	return (nargs);
+	return nargs;
 }
 
-/****************************************************************************/
-
-static void process_macros (const char *input, char *output)
+static void process_macros (char *output, const char *input)
 {
 	char c, prev;
 	const char *varname_start = NULL;
@@ -383,40 +379,22 @@ static void process_macros (const char *input, char *output)
 #endif
 }
 
-/****************************************************************************
- * returns:
- *	1  - command executed, repeatable
- *	0  - command executed but not repeatable, interrupted commands are
- *	     always considered not repeatable
- *	-1 - not executed (unrecognized, bootd recursion or too many args)
- *           (If cmd is NULL or "" or longer than CONFIG_SYS_CBSIZE-1 it is
- *           considered unrecognized)
- *
- * WARNING:
- *
- * We must create a temporary copy of the command since the command we get
- * may be the result from getenv(), which returns a pointer directly to
- * the environment data, which may change magicly when the command we run
- * creates or modifies environment variables (like "bootp" does).
- */
-
-int run_command (const char *cmd, int repeat, int* want_repeat)
+int	run_command(struct main_state *s, const char *cmd, 
+	int repeat, int *want_repeat)
 {
 	cmd_tbl_t *cmdtp;
-	char cmdbuf[CONFIG_SYS_CBSIZE];	/* working copy of cmd		*/
-	char *token;			/* start of token in cmdbuf	*/
-	char *sep;			/* end of token (separator) in cmdbuf */
-	char finaltoken[CONFIG_SYS_CBSIZE];
-	char *str = cmdbuf;
-	char *argv[CONFIG_SYS_MAXARGS + 1];	/* NULL terminated	*/
+	char cmdbuf[CONFIG_SYS_CBSIZE];
+	/* token without macros */
+	char token_nom[CONFIG_SYS_CBSIZE];
+	/* token split for argv */
+	char token_argv[CONFIG_SYS_CBSIZE]; 
+	char *token; /* start of token in cmdbuf	*/
+	char *sep;   /* end of token (separator) in cmdbuf */
+	char *str;
+	char *argv[CONFIG_SYS_MAXARGS + 1];	/* NULL terminated */
 	int argc, inquotes;
 	int rc = 0;
-
-#ifdef DEBUG_PARSER
-	printf ("[RUN_COMMAND] cmd[%p]=\"", cmd);
-	puts (cmd ? cmd : "NULL");	/* use puts - string may be loooong */
-	puts ("\"\n");
-#endif
+	int ask_repeat = 1;
 
 	clear_ctrlc();		/* forget any previous Control C */
 
@@ -425,16 +403,12 @@ int run_command (const char *cmd, int repeat, int* want_repeat)
 	}
 
 	if (strlen(cmd) >= CONFIG_SYS_CBSIZE) {
-		puts ("## Command too long!\n");
-		return -E2BIG;
+		return -ENOBUFS;
 	}
 
-	strcpy (cmdbuf, cmd);
+	strcpy(cmdbuf, cmd);
 
-	if(want_repeat)
-		*want_repeat = 1;
-
-	while (*str) {
+	for(str=cmdbuf; *str; ) {
 		/*
 		 * Find separator, or string end
 		 * Allow simple escape of ';' by writing "\;"
@@ -463,43 +437,55 @@ int run_command (const char *cmd, int repeat, int* want_repeat)
 			str = sep;	/* no more commands for next pass */
 
 		/* find macros in this token and replace them */
-		process_macros (token, finaltoken);
+		process_macros(token_nom, token);
+		strncpy_s(token_argv, token_nom, CONFIG_SYS_CBSIZE);
 
 		/* Extract arguments */
-		if ((argc = parse_line (finaltoken, argv)) == 0) {
-			rc = -EFAULT;
+		argc = parse_line(token_argv, argv);
+		if (argc == 0) {
+			rc = 0;
 			continue;
 		}
 
 		/* Look up command in command table */
 		if ((cmdtp = find_cmd(argv[0])) == NULL) {
 			printf ("Unknown command '%s' - try 'help'\n", argv[0]);
+			ask_repeat = 0;
 			rc = -ENOENT;
-			continue;
+			break;
 		}
+
+		struct cmd_ctx ctx = {
+			.cmdline = token_nom,
+			.repeat = repeat,
+			.ms = s,
+			.cmdtp = cmdtp,
+		};
 
 		/* found - check max args */
 		if (argc > cmdtp->maxargs) {
-			cmd_usage(cmdtp);
+			cmd_usage(ctx.cmdtp);
+			ask_repeat = 0;
 			rc = -E2BIG;
-			continue;
+			break;
 		}
 
 		/* OK - call function to do the command */
-		rc = (cmdtp->cmd) (cmdtp,
-				cmdtp->repeatable && repeat,
-				argc, argv);
+		rc = (cmdtp->cmd) (&ctx, argc, argv);
 		if(rc < 0) {
-			return rc;
+			ask_repeat = 0;
+			break;
 		}
 
-		if(want_repeat)
-			*want_repeat &= cmdtp->repeatable;
+		ask_repeat &= cmdtp->repeatable;
 
 		/* Did the user stop this? */
 		if (had_ctrlc ())
 			return -EINTR;
 	}
+
+	if(want_repeat)
+		*want_repeat = ask_repeat;
 
 	return rc;
 }
@@ -507,25 +493,26 @@ int run_command (const char *cmd, int repeat, int* want_repeat)
 /****************************************************************************/
 
 #if defined(CONFIG_CMD_RUN)
-int do_run (cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
+int do_run (struct cmd_ctx *ctx, int argc, char * const argv[])
 {
 	int i;
 	int ret;
 
 	if (argc < 2)
-		return cmd_usage(cmdtp);
+		return cmd_usage(ctx->cmdtp);
 
 	for (i=1; i<argc; ++i) {
-		char *arg;
-
-		if ((arg = getenv (argv[i])) == NULL) {
-			printf ("## Error: \"%s\" not defined\n", argv[i]);
-			return -1;
+		char *arg = getenv(argv[i]);
+		if (arg == NULL) {
+			printf ("RUN variable not defined: name %s\n", argv[i]);
+			return -EINVAL;
 		}
 
-		ret = run_command (arg, flag, NULL);
-		if(ret < 0)
+		ret = run_command(ctx->ms, arg, 0, NULL);
+		if(ret < 0) {
+			printf("RUN failed: cmd %s ret %d\n", arg, ret);
 			return ret;
+		}
 	}
 	return 0;
 }

@@ -1,4 +1,5 @@
 #include <common.h>
+#include <command.h>
 #include <errno.h>
 #include <malloc.h>
 #include <mtd.h>
@@ -95,7 +96,7 @@ static void extract_dirname(char *dir, const char* path)
 	dir[p-path]='\0';
 }
 
-static int do_fwupgrade(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+static int do_fwupgrade(struct cmd_ctx *cmdctx, int argc, char * const argv[])
 {
 	struct mtd_info *mtd;
 	int ret;
@@ -105,7 +106,7 @@ static int do_fwupgrade(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 			mtd = mtd_by_name(argv[1]);
 			break;
 		default:
-			return cmd_usage(cmdtp);
+			return cmd_usage(cmdctx->cmdtp);
 	}
 
 	if(mtd == NULL) {
@@ -159,7 +160,6 @@ out:
 U_BOOT_CMD(
 	fwupgrade,	2,	0,	do_fwupgrade,
 	"Firmware upgrade via TFTP",
-	"\n"
 	"fwupgrade MTD - rewrites mtd device MTD using TFTP\n"
 	"  TFTP file names by partition:\n"
 	"  boot ..... dir($(bootfile))/mboot.img\n" 

@@ -33,6 +33,7 @@
  * Keep it *SMALL* and remember to set GENERATED_GBL_DATA_SIZE > sizeof(gd_t)
  */
 
+#if 0
 typedef	struct	global_data {
 	bd_t		*bd;
 	unsigned long	flags;
@@ -90,5 +91,6 @@ typedef	struct	global_data {
 #define GD_FLG_ENV_READY	0x00080	/* Environment imported into hash table	*/
 
 #define DECLARE_GLOBAL_DATA_PTR     register volatile gd_t *gd asm ("r8")
+#endif
 
 #endif /* __ASM_GBL_DATA_H */

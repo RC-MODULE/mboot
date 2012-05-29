@@ -140,7 +140,7 @@ static void mtd_print_info(struct mtd_info *mtd)
 #define check(x, err) do { if(!(x)) { err ; } }while(0)
 #define check_(x, str, err) do { if(!(x)) { printf("%s\n", str); err ; } }while(0)
 
-int do_mtd(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
+int do_mtd(struct cmd_ctx *ctx, int argc, char * const argv[])
 {
 	int ret = 0;
 	char *cmd;
@@ -214,7 +214,7 @@ int do_mtd(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 		ret = str2off(argv[2], &off);
 		check(ret == 0, goto usage);
 
-		if(flag & CMD_FLAG_REPEAT)
+		if(ctx->repeat)
 			off = last_off + mtd->writesize;
 
 		ret = mtd_dump(mtd, off, 0);
@@ -287,13 +287,13 @@ int do_mtd(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 	}
 
 usage:
-	return cmd_usage(cmdtp);
+	return cmd_usage(ctx->cmdtp);
 }
 
 U_BOOT_CMD(
 	mtd, CONFIG_SYS_MAXARGS, 0, do_mtd,
 	"MTD subsystem",
-	"info - show available MTD devices\n"
+	"mtd info - show available MTD devices\n"
 	"mtd set DEV - set current MTD device\n"
 	"mtd read addr off size\n"
 	"mtd write addr off size\n"

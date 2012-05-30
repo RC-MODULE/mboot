@@ -183,7 +183,7 @@ out:
 }
 
 U_BOOT_CMD(
-	fwupgrade,	2,	0,	do_fwupgrade,
+	fwupgrade,	3,	0,	do_fwupgrade,
 	"Firmware upgrade via TFTP",
 	"fwupgrade MTD [FNAME] ...\n"
 	" - rewrites mtd device MTD using TFTP\n"

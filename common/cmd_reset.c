@@ -42,8 +42,8 @@
 
 int do_reset(struct cmd_ctx *ctx, int argc, char * const argv[])
 {
-	puts ("resetting ...\n");
-	reset_cpu(0);
+	puts ("resetting ...\n\n");
+	board_reset();
 
 	/* Not reached */
 	return 0;

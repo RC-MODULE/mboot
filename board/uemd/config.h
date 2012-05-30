@@ -191,6 +191,7 @@
 #define CONFIG_CMD_PING
 //#define CONFIG_CMD_MD5SUM
 //#define CONFIG_CMD_MNAND
+#define CONFIG_CMD_RESET
 
 /*
  * Miscellaneous configurable options

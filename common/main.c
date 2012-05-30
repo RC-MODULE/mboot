@@ -379,7 +379,7 @@ static void process_macros (char *output, const char *input)
 #endif
 }
 
-int	run_command(struct main_state *s, const char *cmd, 
+int run_command(struct main_state *s, const char *cmd,
 	int repeat, int *want_repeat)
 {
 	cmd_tbl_t *cmdtp;
@@ -387,7 +387,7 @@ int	run_command(struct main_state *s, const char *cmd,
 	/* token without macros */
 	char token_nom[CONFIG_SYS_CBSIZE];
 	/* token split for argv */
-	char token_argv[CONFIG_SYS_CBSIZE]; 
+	char token_argv[CONFIG_SYS_CBSIZE];
 	char *token; /* start of token in cmdbuf	*/
 	char *sep;   /* end of token (separator) in cmdbuf */
 	char *str;
@@ -415,13 +415,13 @@ int	run_command(struct main_state *s, const char *cmd,
 		 */
 		for (inquotes = 0, sep = str; *sep; sep++) {
 			if ((*sep=='\'') &&
-			    (*(sep-1) != '\\'))
+				(*(sep-1) != '\\'))
 				inquotes=!inquotes;
 
 			if (!inquotes &&
-			    (*sep == ';') &&	/* separator		*/
-			    ( sep != str) &&	/* past string start	*/
-			    (*(sep-1) != '\\'))	/* and NOT escaped	*/
+				(*sep == ';') &&	/* separator		*/
+				( sep != str) &&	/* past string start	*/
+				(*(sep-1) != '\\'))	/* and NOT escaped	*/
 				break;
 		}
 

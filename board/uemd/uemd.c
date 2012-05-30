@@ -46,15 +46,8 @@
 
 static struct env_var g_env_def[] = {
 	ENV_VAR("bootargs",   CONFIG_BOOTARGS_MTD),
-#ifdef CONFIG_BOOTCMD
-	ENV_VAR("bootcmd",    CONFIG_BOOTCMD),
-#endif
-#ifdef CONFIG_BOOTDELAY
-	ENV_VAR("bootdelay",  CONFIG_BOOTDELAY),
-#endif 
-#ifdef CONFIG_AUTOLOAD
-	ENV_VAR("autoload",   CONFIG_AUTOLOAD),
-#endif
+	ENV_VAR("bootcmd",    CONFIG_BOOTCOMMAND),
+	ENV_VAR("bootdelay",  STR(CONFIG_BOOTDELAY)),
 	ENV_VAR("ethaddr",    CONFIG_ETHADDR),
 	ENV_VAR("ipaddr",     CONFIG_IPADDR),
 	ENV_VAR("serverip",   CONFIG_SERVERIP),
@@ -172,8 +165,6 @@ void uemd_init(struct uemd_otp *otp)
 	printf("\t0x%08X^ stack_ptr\n", CONFIG_SYS_SP_ADDR);
 	printf("\t0x%08X  malloc\n", CONFIG_SYS_MALLOC_ADDR);
 	printf("\t0x%08X  env\n", CONFIG_SYS_ENV_ADDR);
-	printf("\t0x%08X  bd\n", CONFIG_SYS_BD_ADDR);
-	printf("\t0x%08X  gd\n", CONFIG_SYS_GD_ADDR);
 
 	/* MTD/MNAND */
 	struct mtd_info mtd_mnand = MTD_INITIALISER(MTDALL);
@@ -220,6 +211,29 @@ void uemd_init(struct uemd_otp *otp)
 	/* MAIN LOOP */
 	struct main_state ms;
 	main_state_init(&ms);
+
+	ulong bootdelay_sec;
+	const char *bootcmd;
+
+	bootcmd = getenv("bootcmd");
+	getenv_ul("bootdelay", &bootdelay_sec, 0);
+	if(bootdelay_sec>0 && bootcmd) {
+		printf("Press any key (in %lu sec) to skip autoload...",
+			bootdelay_sec);
+		ulong base = get_timer(0);
+		while (get_timer(base) < bootdelay_sec*1000) {
+			if(tstc()) break;
+		}
+		if(tstc()) {
+			printf("skipped\n");
+		}
+		else {
+			printf("\nRunning autoload command '%s'\n",
+				bootcmd);
+			run_command(&ms,bootcmd,0,NULL);
+		}
+	}
+
 	while(! MAIN_STATE_HAS_ENTRY(&ms)) {
 		ret = main_process_command(&ms);
 		uemd_check_zero(ret, goto err, "Process command failed");

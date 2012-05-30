@@ -566,8 +566,10 @@ static int mnand_core_erase(loff_t off)
 	mnand_set(0xc, (off >> mnand_erasesize_shift(g_chip.mtd)) << 18);
 
 	ret = mnand_poll();
-	if(ret < 0) 
+	if(ret < 0) {
+		printf("mnand: poll failed: ret %d\n", ret);
 		return ret;
+	}
 
 	BUG_ON(!mnand_ready());
 
@@ -1258,8 +1260,9 @@ static int mnand_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	err = mnand_core_erase(instr->addr);
 
-	if(err) {
-		printk(KERN_ERR "erase failed with %d at 0x%08llx\n", err, instr->addr);
+	if(err != 0) {
+		printk("mnand: erase failed: off 0x%012llX err %d\n",
+			instr->addr, err);
 		instr->state = MTD_ERASE_FAILED;
 		instr->fail_addr = instr->addr;    
 	}
@@ -1268,8 +1271,7 @@ static int mnand_erase(struct mtd_info *mtd, struct erase_info *instr)
 	}
 
 	/*mtd_erase_callback(instr);*/
-
-	return 0;
+	return err;
 }
 
 #define PAGE_ALIGNED(x) (((x) & (g_chip.mtd->writesize-1)) ==0)

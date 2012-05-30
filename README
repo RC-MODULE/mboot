@@ -1,17 +1,37 @@
 MBOOT bootloader
 ================
 
-MBOOT is a clone of U-Boot, without lots of it functions. Main features:
+MBOOT is a clone of well known das U-Boot, with reduced functionality. I think,
+it is it's main benefit. The key point is:
 
-* All boot procedure is in single file (but only one board is supported for now
-  - the one I have access to)
-* Only Linux kernel, only in uImage format, no compression, no RAM disks etc
+	Allow the board owner to write a code he needs to boot the board.
+
+This means that there is no single board_init_r function for everyone with tones
+of defines, callbacks, switches and bugs people are afraid to fix because they
+think it can hurt someone else. Sorry for my English, there are probably some
+grammar mistakes.
+
+Other features:
+
+* All board's boot procedure is in single file (actually, only one board is
+  supported - the one I have access to). See board/uemd/uemd.c for an
+  illustration.
+* Smaller and cleaner Makefile. No symlinks, almost no generated files, still
+  supporting linux-style CONFIG_ defines. Works faster!
+* Cleaner code: Network stack and Main loop now have explicit states, main
+  booting procedure is in single board-specific file, lighter environment system.
+* New MTD stack and read-write routines.
+* Easy framework for in-place generating of Linux tags and commad line.
+* No that f*cking relocation, easy to debug.
+
+Working commands are: help, setenv, getenv, saveenv, reset, bootm, mtdboot,
+tftpboot, ping, version, mtd, fwupgrade and some other which are not so important.
+
+Unfortunately, there are heavy limitations, U-boot is a huge project after all.
+
+* Only Linux kernels, only legacy uImage format, no compression, no RAM disks
   (but it can be added easily)
-* Smaller and cleaner Makefile. No symlinks, no generated files. It works faster!
-* Cleaner code: Network stack, Main loop have their explicit states, main
-  booting procedure is in single board-specific file. Easy framework for
-  generating kernel commad line
-* No that damned relocation
+* One arch (ARM 1176), one board (unknown for the public).
 
 Compile
 =======
@@ -28,7 +48,8 @@ KNOWN BUGS
 ==========
 
 * Makefile doesn't like when you remove headers.
-* Tones of garbage U-boot code. Most of commands I don't fix have old U-boot
-  style of passing arguments and thus will not compile
-
+* Tones of garbage U-boot code. Most of commands are disabled and have to be
+  adopted to the new format.
+* Nasty bug is lurking somewhere in readline function. Sometimes It stops working
+  when I press Ctrl+C.
 

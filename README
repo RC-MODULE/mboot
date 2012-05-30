@@ -1,0 +1,34 @@
+MBOOT bootloader
+================
+
+MBOOT is a clone of U-Boot, without lots of it functions. Main features:
+
+* All boot procedure is in single file (but only one board is supported for now
+  - the one I have access to)
+* Only Linux kernel, only in uImage format, no compression, no RAM disks etc
+  (but it can be added easily)
+* Smaller and cleaner Makefile. No symlinks, no generated files. It works faster!
+* Cleaner code: Network stack, Main loop have their explicit states, main
+  booting procedure is in single board-specific file. Easy framework for
+  generating kernel commad line
+* No that damned relocation
+
+Compile
+=======
+
+To build the bootloader one have to type
+
+	export CROSS_COMPILE=<your compiler prefix>
+	make -f Makefile.<board>
+
+Known to work with my compiler - gcc version 4.4.5 p1.3, pie-0.4.5 built with
+the help of Gentoo crossdev suit.
+
+KNOWN BUGS
+==========
+
+* Makefile doesn't like when you remove headers.
+* Tones of garbage U-boot code. Most of commands I don't fix have old U-boot
+  style of passing arguments and thus will not compile
+
+

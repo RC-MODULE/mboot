@@ -25,15 +25,12 @@
 
 #include <config_defaults.h>
 
-#define CONFIG_ARM_ARM1176        y
+/*#define CONFIG_ARM_ARM1176        y*/
 #define CONFIG_BOARD_UEMD         1
 #define CONFIG_UEMD_MACH_TYPE     3281
 
 /* Use HIGH-frequency mode */
 #undef CONFIG_UEMD_LO_FREQ
-
-/* Use first board's MAC */
-#define CONFIG_UEMD_BOARD1
 
 #ifdef  CONFIG_UEMD_LO_FREQ
 #define FREQ_54000000 40000000
@@ -52,22 +49,12 @@
 #define _PHYS_EM0_SIZE 0x08000000
 #endif
 
-
-#if defined(CONFIG_UEMD_BOARD1)
-#define UEMD_MAC "00:02:F7:00:27:0F"
-#elif defined(CONFIG_UEMD_BOARD2)
-#define UEMD_MAC "00:02:F7:00:27:0D"
-#else
-#error "Please define either CONFIG_UEMD_BOARD1 or CONFIG_UEMD_BOARD2"
-#endif
-
 /*
  * Physical Memory Map
  */
 #define CONFIG_SYS_TEXT_BASE      TEXT_BASE
 
 #define CONFIG_SYS_UBOOT_BASE     CONFIG_SYS_TEXT_BASE
-#define CONFIG_NR_DRAM_BANKS      1
 
 /* Internal memory*/
 #define PHYS_IM0                  0x00100000
@@ -84,17 +71,9 @@
 #define CONFIG_SYS_MEMTEST_START  (PHYS_EM0)
 #define CONFIG_SYS_MEMTEST_END    (PHYS_EM0 + PHYS_EM0_SIZE)
 
-/* Size in bytes reserved for initial data */
-#define CONFIG_SYS_GD_SIZE        128
-#define CONFIG_SYS_GD_ADDR        (PHYS_IM0 + PHYS_IM0_SIZE - CONFIG_SYS_GD_SIZE)
-
-/* Size in bytes reserved for board data */
-#define CONFIG_SYS_BD_SIZE        64
-#define CONFIG_SYS_BD_ADDR        (CONFIG_SYS_GD_ADDR - CONFIG_SYS_BD_SIZE)
-
 /* Environment data */
 #define CONFIG_SYS_ENV_SIZE       0x400
-#define CONFIG_SYS_ENV_ADDR       (CONFIG_SYS_BD_ADDR - CONFIG_SYS_ENV_SIZE)
+#define CONFIG_SYS_ENV_ADDR       (PHYS_IM0 + PHYS_IM0_SIZE - CONFIG_SYS_ENV_SIZE)
 
 /* Malloc data */
 #define CONFIG_SYS_MALLOC_SIZE    0x8000
@@ -129,11 +108,10 @@
 #define CONFIG_SYS_NS16550
 #define CONFIG_SYS_NS16550_SERIAL
 #define CONFIG_SYS_NS16550_REG_SIZE -4
-#define CONFIG_CONS_INDEX	      1
+#define CONFIG_CONS_INDEX	  1
 #define CONFIG_SYS_NS16550_CLK    FREQ_54000000
 #define CONFIG_SYS_NS16550_COM1   0x2002b000
 #define CONFIG_BAUDRATE           38400
-#define CONFIG_SYS_BAUDRATE_TABLE { 9600, 19200, 38400, 57600, 115200 }
 
 /*
  * Ethernet configuration
@@ -151,12 +129,10 @@
 #define CONFIG_GATEWAYIP          "10.0.0.1"
 #define CONFIG_SERVERIP           "10.0.0.1"
 #define CONFIG_IPADDR             "10.0.0.103"
-#define CONFIG_ETHADDR            UEMD_MAC
+#define CONFIG_ETHADDR            "00:02:F7:00:27:0F"
 #define CONFIG_GRETH_SET_HWADDR
 /* Enables new U-Boot networking stack */
 #define CONFIG_NET_MULTI          1
-#define CONFIG_CMD_NET
-#define CONFIG_CMD_PING
 /* Sets the MTU value for tftp. Larger values may 
  * cause greth to hung up. */
 #define CONFIG_TFTP_BLOCKSIZE     600
@@ -174,16 +150,9 @@
 #define CONFIG_MNAND_BASE       0x2003f000
 /*Uncomment to use slower timings*/
 //#define CONFIG_MTD_MNAND_SLOW
-//#define CONFIG_CMD_MNAND
 #define CONFIG_MNAND_TIMEOUT_MS   5000
 //#define CONFIG_MNAND_DEBUG_HIST
 //#define CONFIG_CMD_MNANDCTL
-
-/* 
- * MD5 routines
- */
-#define CONFIG_MD5
-#define CONFIG_CMD_MD5SUM
 
 /*
  * Booting
@@ -191,8 +160,8 @@
 #define CONFIG_BOOTDIR    "/tftpboot/smironov-boot"
 #define CONFIG_BOOTFILE    CONFIG_BOOTDIR "/uImage"
 #define CONFIG_LOADADDR    0x40100000
-//#define CONFIG_BOOTCOMMAND "tftp"
-//#define CONFIG_BOOTDELAY   5
+#define CONFIG_BOOTCOMMAND "tftp;bootm"
+#define CONFIG_BOOTDELAY   10
 
 /*
  * Commands configurationn
@@ -214,13 +183,14 @@
 //#define CONFIG_CMD_EDITENV
 #define CONFIG_CMD_MISC
 #define CONFIG_CMD_FWUPGRADE
+#define CONFIG_CMD_FWUPGRADE_BUFFER_SIZE 0x20000
+#define CONFIG_CMD_FWUPGRADE_BUFFER_ADDR CONFIG_LOADADDR
 #define CONFIG_CMD_GO
-
-/* Linux command line */
-#define CONFIG_CMDLINE_TAG          1   /* enable passing of ATAGs */
-#define CONFIG_SETUP_MEMORY_TAGS    1
-
-/* #define CONFIG_CMD_UEMD_DRAM */
+//#define CONFIG_CMD_UEMD_DRAM
+#define CONFIG_CMD_NET
+#define CONFIG_CMD_PING
+//#define CONFIG_CMD_MD5SUM
+//#define CONFIG_CMD_MNAND
 
 /*
  * Miscellaneous configurable options

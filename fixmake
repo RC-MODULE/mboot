@@ -1,7 +1,0 @@
-#!/bin/sh
-
-
-for f in `find net lib fs drivers common -name Makefile.old` ; do
-	echo \# $f
-	grep -E 'COBJS-.*\.o$|^if|else|endif' $f  > `dirname $f`/`basename $f .old`
-done

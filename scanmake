@@ -1,7 +1,0 @@
-#!/bin/sh
-
-
-for f in `find -name Makefile` ; do
-	echo \# $f
-	grep ^[a-zA-Z].*CONFIG_.*\.o$ $f
-done

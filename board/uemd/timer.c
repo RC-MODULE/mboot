@@ -101,7 +101,7 @@ static ulong g_last_tics;
 void reset_timer_masked(void)
 {
 	g_last_tics = timer_readl(TIMER_TIMER1VALUE);
-	g_time_ms = 0;	       	    
+	g_time_ms = 0;
 }
 
 void reset_timer(void)
@@ -111,7 +111,7 @@ void reset_timer(void)
 
 void uemd_timer_init(void)
 {
-	timer_writel(TIMER_RELOAD, TIMER_TIMER1LOAD);	
+	timer_writel(TIMER_RELOAD, TIMER_TIMER1LOAD);
 	timer_writel(TIMER_ENABLE | TIMER_SIZE32, TIMER_TIMER1CONTROL);
 	reset_timer_masked();
 }
@@ -122,8 +122,8 @@ void update_global_time(ulong curr_tics)
 
 	if (g_last_tics >= curr_tics) {
 		delta_time_ms = tics_to_msec(g_last_tics - curr_tics);
-	} 
-	else {			
+	}
+	else {
 		delta_time_ms = tics_to_msec(g_last_tics + (TIMER_RELOAD - curr_tics));
 	}
 
@@ -170,8 +170,8 @@ void __udelay (unsigned long usec)
 
 		if (last_tics >= tics) {
 			delta = tics_to_usec(last_tics - tics);
-		} 
-		else {			
+		}
+		else {
 			delta = tics_to_usec(last_tics + TIMER_RELOAD - tics);
 		}
 

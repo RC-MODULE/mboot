@@ -32,8 +32,9 @@ Unfortunately, there are heavy limitations, U-boot is a huge project after all.
 * Only Linux kernels, only legacy uImage format, no compression, no RAM disks
   (but it can be added easily)
 * One arch (ARM 1176), one board (unknown for the public).
+* Simple serial console
 
-Compile
+COMPILE
 =======
 
 To build the bootloader one have to type
@@ -44,12 +45,58 @@ To build the bootloader one have to type
 Known to work with my compiler - gcc version 4.4.5 p1.3, pie-0.4.5 built with
 the help of Gentoo crossdev suit.
 
+Extending
+=========
+
+Porting a new board
+-------------------
+
+Board-specific code::
+Use board/uemd/ as an example. Create board/yourboard/ and write board-specific
+code. Typically, you will need to write board entry-code (yourboard.S), main
+routine (yourboard_main.c), and a linker script.  Create separate header for
+CONFIG_ macros. Insert following code (or somthing like that) to start
+interaction with a user.
+
+	struct main_state ms;
+	main_state_init(&ms);
+
+	while(! MAIN_STATE_HAS_ENTRY(&ms)) {
+		ret = main_process_command(&ms);
+		if(ret != 0) {
+			board_hang();
+		}
+	}
+
+To terminate the loop, some command should set ms.os_image to correct values.
+The handler of bootm command does it for you. See uemd.c to find out how to
+master linux command line and boot it.
+
+Besides that, you have to define several board_ functions to make old-style code
+work.
+
+Console::
+Copy board/uemd/uemd_console.c (simple serial console) to your board's
+directory.
+
+Makefile::
+Write Makefile.yourboard (again, use Makefile.uemd as an example). Setup
+BOARD_ variables, include arch/arm/ and arch/arm/cpu/ Makefiles. Finally,
+include rules.mk and define 'all' and 'clean' rules. Refer to 'rules_all' and
+'rules_clean' from rules.mk.
+
 KNOWN BUGS
 ==========
 
 * Makefile doesn't like when you remove headers.
-* Tones of garbage U-boot code. Most of commands are disabled and have to be
-  adopted to the new format.
+* Tones of old U-boot code. Most of commands are disabled and have to be
+  adopted to the new format. See command.h for details.
 * Nasty bug is lurking somewhere in readline function. Sometimes It stops working
   when I press Ctrl+C.
+
+--
+Best regards,
+Sergey Mironov
+ierton@gmail.com
+https://github.com/ierton/mboot
 

@@ -10,6 +10,7 @@ struct fwu_tftp_ctx {
 	loff_t flash_offset;
 	loff_t flash_end;
 	int bb;
+	int last;
 };
 
 static int fwu_tftp_cb(uint32_t off, u8* buf, size_t len, int last, void* priv)
@@ -22,6 +23,9 @@ static int fwu_tftp_cb(uint32_t off, u8* buf, size_t len, int last, void* priv)
 	}
 
 	struct mtd_info *mtd = ctx->mtd;
+
+	BUG_ON(ctx->last);
+	ctx->last = last;
 
 	ret = 0;
 	while(len > 0) {
@@ -78,14 +82,14 @@ static int fwu_tftp_cb(uint32_t off, u8* buf, size_t len, int last, void* priv)
 					continue;
 				}
 
-				ctx->flash_offset += ctx->block_sz;
+				ctx->flash_offset += mtd->erasesize;
 				ctx->block_sz = 0;
 			}
 
 			if(ctx->block_sz > 0) {
-				printf("FWU failed to overwrite block 0x%012llX ret %d\n",
+				printf("FWU failed to overwrite block, skipping it: off 0x%012llX ret %d\n",
 					ctx->flash_offset, ret);
-				goto err;
+				ctx->flash_offset += mtd->erasesize;
 			}
 		}
 	}

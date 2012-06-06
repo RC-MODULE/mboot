@@ -218,7 +218,7 @@ void uemd_init(struct uemd_otp *otp)
 	bootcmd = getenv("bootcmd");
 	getenv_ul("bootdelay", &bootdelay_sec, 0);
 	if(bootdelay_sec>0 && bootcmd) {
-		printf("Press any key (in %lu sec) to skip autoload...",
+		printf("Hit any key (in %lu sec) to skip autoload...",
 			bootdelay_sec);
 		ulong base = get_timer(0);
 		while (get_timer(base) < bootdelay_sec*1000) {

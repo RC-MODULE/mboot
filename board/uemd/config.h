@@ -202,7 +202,7 @@
 /* Console I/O Buffer Size */
 #define CONFIG_SYS_CBSIZE    256
 /* Monitor Command Prompt */
-#define CONFIG_SYS_PROMPT    "UEMD # "
+#define CONFIG_SYS_PROMPT    "MBOOT # "
 /* Print Buffer Size */
 #define CONFIG_SYS_PBSIZE    (CONFIG_SYS_CBSIZE+sizeof(CONFIG_SYS_PROMPT)+16)
 /* Max number of command args */

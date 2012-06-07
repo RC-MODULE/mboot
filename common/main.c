@@ -55,7 +55,9 @@ int main_process_command(struct main_state *s)
 
 	len = readline(CONFIG_SYS_PROMPT);
 	if(len < 0) {
-		printf("MAIN: readline error: ret %d\n", len);
+		if(len != -EINTR) {
+			printf("MAIN: readline error: ret %d\n", len);
+		}
 		return len;
 	}
 	else {
@@ -86,8 +88,7 @@ int main_process_command(struct main_state *s)
  * If  CONFIG_BOOT_RETRY_TIME is defined and retry_time >= 0,
  * time out when time goes past endtime (timebase time in ticks).
  * Return:	number of read characters
- *		-1 if break
- *		-2 if timed out
+ *		-EINTR if break
  */
 int readline (const char *const prompt)
 {
@@ -137,7 +138,7 @@ int readline_into_buffer (const char *const prompt, char * buffer)
 
 		case 0x03:				/* ^C - break		*/
 			p_buf[0] = '\0';	/* discard input */
-			return (-1);
+			return -EINTR;
 
 		case 0x15:				/* ^U - erase line	*/
 			while (col > plen) {

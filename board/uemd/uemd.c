@@ -236,7 +236,15 @@ void uemd_init(struct uemd_otp *otp)
 
 	while(! MAIN_STATE_HAS_ENTRY(&ms)) {
 		ret = main_process_command(&ms);
-		uemd_check_zero(ret, goto err, "Process command failed");
+		if(ret < 0) {
+			if (ret == -EINTR) {
+				puts("<INTR>\n");
+			}
+			else {
+				printf("process_command failed: ret %d\n", ret);
+				goto err;
+			}
+		}
 	}
 
 	ulong machid;

@@ -105,3 +105,46 @@ int cmd_get_data_size(char* arg, int default_size)
        return default_size;
 }
 
+char* cmd_arg_next(char* p, struct estring *arg)
+{
+	if(p==NULL) return NULL;
+	while(*p == ' ') p++;
+
+	arg->len = 0;
+	arg->lstr = p;
+	int lvl = 0;
+	int quote = 0;
+	while(*p != '\0' && !(*p == ' ' && lvl == 0 && !quote)) {
+		if(quote == 0) {
+			if(*p == '\\') {
+				quote = 1;
+				arg->quote = 1;
+			}
+			else if (*p == '"'){
+				lvl = 1 - lvl;
+				arg->quote = 1;
+			}
+		}
+		else {
+			quote = 0;
+		}
+		arg->len++;
+		p++;
+	}
+
+	if(quote) {
+		arg->lstr = "<ERROR: bad \\-quoting>";
+		arg->len = 0;
+		return NULL;
+	}
+
+	if(lvl) {
+		arg->lstr = "<ERROR: bad \"-quoting>";
+		arg->len = 0;
+		return NULL;
+	}
+
+	while(*p == ' ') p++;
+	return p;
+}
+

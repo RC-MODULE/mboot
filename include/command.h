@@ -26,23 +26,35 @@
 
 #ifndef	__ASSEMBLY__
 
+#include <estring.h>
+
 struct cmd_tbl;
+struct main_state;
 
 struct cmd_ctx {
+	/* A copy of user's command */
 	const char *cmdline;
+	/* Are we repeating the command now? */
 	int repeat;
+	/* Main loop's state */
 	struct main_state *ms;
+	/* Command table */
 	struct cmd_tbl *cmdtp;
 };
 
+char* cmd_arg_next(char* cmdline, struct estring *arg);
+
+#define for_all_cmdargs(cmdline, p, i, estr) \
+	for(i=0,p=cmd_arg_next((char*)cmdline, estr); (estr)->len!=0; p=cmd_arg_next(p, estr),i++)
+
 struct cmd_tbl {
-	char *name;		/* Command Name	*/
-	int	maxargs;	/* maximum number of arguments */
-	int	repeatable;	/* autorepeat allowed? */
-	int	(*cmd)(struct cmd_ctx * ctx, int argc, char * const argv[]);
-	char *usage;	/* Usage message (short) */
+	char *name;  /* Command Name */
+	int maxargs; /* maximum number of arguments */
+	int repeatable;	/* autorepeat allowed? */
+	int (*cmd)(struct cmd_ctx * ctx, int argc, char * const argv[]);
+	char *usage; /* Usage message (short) */
 #ifdef	CONFIG_SYS_LONGHELP
-	char *help;		/* Help  message (long)	*/
+	char *help;  /* Help  message (long) */
 #endif
 };
 

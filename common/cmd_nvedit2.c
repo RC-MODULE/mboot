@@ -27,28 +27,12 @@
 #include <common.h>
 #include <command.h>
 #include <errno.h>
+#include <estring.h>
 
 #define SEP '\0'
 #define SSEP "\0"
 #define EOE '\3'
 #define SEOE "\3"
-
-struct estring {
-	char *lstr;
-	int len;
-};
-
-typedef struct estring estring_t;
-
-inline void estr_clear(struct estring *s) { memset(s,0,sizeof(struct estring)); }
-inline void estr_init(struct estring *s, char *v) { s->lstr=v; s->len=strlen(v); }
-
-inline int estr_eq(const struct estring *s, const char *v)
-{
-	int len = strlen(v);
-	if(len != s->len) return 0;
-	return 0 == strncmp(s->lstr,v,len);
-}
 
 
 #ifdef  CONFIG_EXTRA_ENV_SETTINGS
@@ -219,9 +203,7 @@ static void printf_env(struct estring* name, struct estring* val)
 #define for_all_env(addr,i,pname,pval) \
 	for(i=env_next(addr,pname,pval); (pname)->lstr; i=env_next(i,pname,pval))
 
-/* Sets a value of a variable.
- * WARNING: values obtained from getenv calls are no longer valid */
-int setenv (const char *rname, const char *rval)
+static int setenv_e (const struct estring *ename, const struct estring *eval)
 {
 	char *i, *eoe;
 	struct estring name, val;
@@ -230,13 +212,13 @@ int setenv (const char *rname, const char *rval)
 	if(g_env == NULL)
 		return -EPERM;
 
-	if(rval > g_env && rval <= g_env+g_env_sz) {
+	if(eval->lstr > g_env && eval->lstr <= g_env+g_env_sz) {
 		error("BUG: recursive environment pointers: name %s val %s",
-			rname, rval);
+			ename->lstr, eval->lstr);
 	}
 
 	for_all_env(g_env, i, &name, &val) {
-		if(estr_eq(&name, rname)) {
+		if(estr_eq_estr(&name, ename)) {
 			memcpy(name.lstr, i, g_env_sz - (i - g_env));
 			for(i=name.lstr; *i!=EOE; i++);
 			break;
@@ -246,12 +228,12 @@ int setenv (const char *rname, const char *rval)
 	/* Now i points to EOE */
 	eoe = i;
 
-	if(rval == NULL) goto out;
+	if(eval->len == 0) goto out;
 
 	free = g_env_sz - (i - g_env) - 1;
 
-	len = MIN(free,strlen(rname));
-	memcpy(i, rname, len);
+	len = MIN(free,ename->len);
+	memcpy(i, ename->lstr, len);
 	i += len;
 	free -= len;
 
@@ -260,8 +242,8 @@ int setenv (const char *rname, const char *rval)
 	i += len;
 	free -= len;
 
-	len = MIN(free,strlen(rval));
-	memcpy(i, rval, len);
+	len = MIN(free,eval->len);
+	memcpy(i, eval->lstr, len);
 	i += len;
 	free -= len;
 
@@ -280,6 +262,16 @@ out:
 bad:
 	*eoe = EOE;
 	return -ENOMEM;
+}
+
+/* Sets a value of a variable.
+ * WARNING: values obtained from getenv calls are no longer valid */
+int setenv (const char *rname, const char *rval)
+{
+	struct estring eval, ename;
+	estr_init(&ename, rname);
+	estr_init(&eval, rval);
+	return setenv_e(&ename, &eval);
 }
 
 /* Gets a value of a rname variable.
@@ -330,26 +322,26 @@ U_BOOT_CMD(
 
 static int do_env_set(struct cmd_ctx *ctx, int argc, char * const argv[])
 {
-	int ret;
-	switch(argc) {
-		case 2: ret = setenv(argv[1], NULL); break;
-		case 3: ret = setenv(argv[1], argv[2]); break;
+	struct estring cmd, name, val;
+	char *next = (char*)ctx->cmdline;
+
+	next = cmd_arg_next(next, &cmd);
+	next = cmd_arg_next(next, &name);
+	estr_init(&val, next);
+
+	if(name.len == 0)
 		return cmd_usage(ctx->cmdtp);
-	}
-	if(ret < 0) {
-		printf("ENV setenv failed: red %d\n", ret);
-		return ret;
-	}
-	return ret;
+
+	return setenv_e(&name, &val);
 }
 
 U_BOOT_CMD(
-	setenv, 3, 0, do_env_set,
+	setenv, CONFIG_SYS_MAXARGS, 0, do_env_set,
 	"set environment variables",
 	"setenv NAME VALUE\n"
-	"    - sets environment variable NAME'\n"
+	"    - sets environment variable NAME to a value of VALUE\n"
 	"setenv NAME\n"
-	"    - delete value NAME"
+	"    - deletes variable NAME"
 );
 
 int do_env_save (struct cmd_ctx* ctx, int argc, char * const argv[])

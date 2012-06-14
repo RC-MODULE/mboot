@@ -32,7 +32,7 @@ ifndef BOARD_BIN
 BOARD_BIN = $(BOARD_ELF).bin
 endif
 
-.PHONY: rules_all rules_clean
+.PHONY: rules_all rules_clean list
 
 rules_all: $(BOARD_ELF) $(BOARD_BIN)
 
@@ -42,7 +42,7 @@ rules_clean:
 	-@find -name '*\.t' -exec rm '{}' ';'
 	-@find -name '*\.d' -exec rm '{}' ';'
 
-rules.mk: $(BOARD_ELF).config $(shell find arch board common drivers net lib fs -name Makefile)
+rules.mk: $(BOARD_ELF).config $(shell find arch board common drivers net lib -name Makefile)
 
 $(BOARD_ELF).config: $(BOARD_CONFIG)
 	$(CPP) -Iinclude -DDO_DEPS_ONLY -dM $(BOARD_CONFIG) | \
@@ -50,7 +50,7 @@ $(BOARD_ELF).config: $(BOARD_CONFIG)
 
 include $(BOARD_ELF).config
 
-VPATH = $(shell find common drivers net lib fs -type d)
+VPATH = $(shell find common drivers net lib -type d)
 
 COBJS-y += $(BOARD_OBJS)
 include common/Makefile
@@ -112,6 +112,9 @@ rules.mk: $(DEPS)
 
 tags: $(DEPS)
 	cat $^ | sed 's/^.*://g' | sed 's/[\\]//g' | sed 's/ \+/\n/g' | sort -u | ctags -L -
+
+list: $(DEPS)
+	cat $^ | sed 's/^.*://g' | sed 's/[\\]//g' | sed 's/ \+/\n/g' | sort -u
 
 -include $(DEPS)
 

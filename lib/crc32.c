@@ -12,12 +12,13 @@
 #include <common.h>
 #endif
 #include <compiler.h>
-#include <u-boot/crc.h>
+#include <crc.h>
 
 #if defined(CONFIG_HW_WATCHDOG) || defined(CONFIG_WATCHDOG)
 #include <watchdog.h>
 #endif
-#include "u-boot/zlib.h"
+#include <zlib.h>
+#include <linux/types.h>
 
 #define local static
 #define ZEXPORT	/* empty */

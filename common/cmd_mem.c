@@ -34,7 +34,7 @@
 #endif
 #include <watchdog.h>
 
-#include <u-boot/md5.h>
+#include <md5.h>
 #include <sha1.h>
 #include <main.h>
 

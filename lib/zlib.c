@@ -30,7 +30,7 @@
 #include <compiler.h>
 #include <asm/unaligned.h>
 #include <watchdog.h>
-#include "u-boot/zlib.h"
+#include <zlib.h>
 #undef	OFF				/* avoid conflicts */
 
 /* To avoid a build time warning */

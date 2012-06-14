@@ -30,7 +30,7 @@
  * Base codes by scsuh (sc.suh)
  */
 
-#include <asm-offsets.h>
+//#include <asm-offsets.h>
 #include <config.h>
 #include <version.h>
 

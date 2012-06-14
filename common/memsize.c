@@ -37,7 +37,7 @@
  * the actually available RAM size between addresses `base' and
  * `base + maxsize'.
  *
- * WARNING: Destructive test! Run it only on empty memory
+ * WARNING: Destructive test! DO NOT RUN it on memory already in use!
  */
 long get_ram_size(volatile long *base, long maxsize)
 {

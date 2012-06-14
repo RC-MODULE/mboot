@@ -36,7 +36,6 @@ typedef volatile unsigned char	vu_char;
 
 #include <config.h>
 #include <compiler.h>
-#include <asm-offsets.h>
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -265,7 +264,7 @@ void	udelay        (unsigned long);
 char *	strmhz(char *buf, long hz);
 
 /* lib/crc32.c */
-#include <u-boot/crc.h>
+#include <crc.h>
 
 /* common/console.c */
 int	ctrlc (void);

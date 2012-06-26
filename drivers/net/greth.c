@@ -214,6 +214,11 @@ static int write_mii(int addr, int data, int phyaddr, volatile greth_regs * regs
  */
 static int greth_init(struct eth_device *dev)
 {
+	return 0;
+}
+
+static int greth_real_init(struct eth_device *dev)
+{
 	int i;
 
 	greth_priv *greth = dev->priv;
@@ -444,6 +449,11 @@ auto_neg_done:
 
 static void greth_halt(struct eth_device *dev)
 {
+}
+
+#if 0
+static void greth_halt(struct eth_device *dev)
+{
 	greth_priv *greth;
 	greth_regs *regs;
 	int i;
@@ -475,6 +485,7 @@ static void greth_halt(struct eth_device *dev)
 		}
 	}
 }
+#endif
 
 static int greth_send(struct eth_device *dev, volatile void *eth_data, int data_length)
 {
@@ -817,7 +828,7 @@ int greth_initialize()
 	};
 
 	eth_register(dev);
-	return 0;
+	return greth_real_init(dev);
 }
 
 

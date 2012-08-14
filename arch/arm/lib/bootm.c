@@ -58,19 +58,16 @@ int do_bootm_linux(ulong ep)
 
 	bd_t	*bd = gd->bd;
 	char	*s;
-	int	machid = bd->bi_arch_number;
+	uin32_t	machid = bd->bi_arch_number;
 	void	(*kernel_entry)(int zero, int arch, uint params);
 
 #ifdef CONFIG_CMDLINE_TAG
 	char *commandline = getenv ("bootargs");
 #endif
+	getenv_ul("machid", &machid, machid);
 
-	s = getenv ("machid");
-	if (s) {
-		machid = simple_strtoul (s, NULL, 16);
-		printf ("Using machid 0x%x from environment\n", machid);
-	}
-
+	printf ("Using machid 0x%x from environment\n", machid);
+	
 	kernel_entry = (void (*)(int, int, uint))ep;
 
 	debug ("## Transferring control to Linux (at address %08lx) ...\n",

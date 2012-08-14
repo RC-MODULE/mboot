@@ -85,6 +85,7 @@ CFLAGS = \
 	-fno-builtin \
 	-ffreestanding \
 	-Wall \
+	-Wno-error=unused-but-set-variable\
 	-Werror \
 	-g \
 	-O0

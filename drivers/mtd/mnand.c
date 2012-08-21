@@ -563,7 +563,8 @@ static int mnand_core_erase(loff_t off)
 	g_chip.state = MNAND_ERASE;
 
 	mnand_set(0x8, 0x2b);
-	mnand_set(0xc, (off >> mnand_erasesize_shift(g_chip.mtd)) << 18);
+	mnand_set(0xc, (off >> mnand_erasesize_shift(g_chip.mtd)) << (ffs(g_chip.mtd->erasesize)));
+
 
 	ret = mnand_poll();
 	if(ret < 0) {

@@ -58,6 +58,7 @@ static struct env_var g_env_def[] = {
 #endif
 	ENV_VAR("bootfile",   CONFIG_BOOTFILE),
 	ENV_VAR("loadaddr",   STR(CONFIG_LOADADDR)),
+	ENV_VAR("upcmd", "mtd scrub 0 0x40000; mtd write 0x40100000 0x0 0x40000"),
 	ENV_NULL
 };
 
@@ -128,6 +129,44 @@ static struct env_ops g_uemd_env_ops = {
 #define MTDENV "env"
 #define MTDBOOT CONFIG_MTD_BOOTNAME
 
+
+#define EDCL_ADDR  0x00100000
+#define EDCL_MAGIC_EMERGENCY 0xDEADC0DE
+#define EDCL_MAGIC_READY 0xB00BC0DE
+#define EDCL_MAGIC_GO 0xDEADBEAF
+#define EDCL_MAGIC_DONE 0x1EAFFEEF
+/* 
+ * EDCL -> INIT
+ * UBOOT -> READY
+ * EDCL uploads image to ddr inited
+ * EDCL -> GO
+ * UBOOT writes the image, upgrade is done 
+ */
+
+void check_edcl_voodoo(struct main_state *ms) {
+	uint32_t* maddr = (uint32_t*) EDCL_ADDR;
+	const char* upcmd = getenv("upcmd");
+	printf("Is there a EDCL emergency? ");
+	if (*maddr == EDCL_MAGIC_EMERGENCY) {
+		printf("Yes\n");
+		printf("Waiting for host to upload the image...");
+		*maddr = EDCL_MAGIC_READY;
+		while (*maddr != EDCL_MAGIC_GO); 
+		printf("...ready!\n");
+		printf("Debricking the board...");
+		run_command(ms,upcmd,0,NULL);
+		*maddr = EDCL_MAGIC_DONE;
+		printf("...all done\n");
+		printf("Reboot and have a nice day\n");
+		board_hang();
+	}else
+	{
+		printf("Nope\n");
+	}
+
+}
+
+
 void uemd_init(struct uemd_otp *otp)
 {
 	//DECLARE_GLOBAL_DATA_PTR;
@@ -146,7 +185,7 @@ void uemd_init(struct uemd_otp *otp)
 		MBOOT_VERSION, MBOOT_DATE);
 	printf("OTP info: boot_source %u jtag_stop %u words_len %u\n",
 		otp->source, otp->jtag_stop, otp->words_length);
-
+	
 	/* SDRAM */
 	struct memregion sdram;
 	ret = uemd_em_init_check(&sdram);
@@ -217,6 +256,8 @@ void uemd_init(struct uemd_otp *otp)
 
 	bootcmd = getenv("bootcmd");
 	getenv_ul("bootdelay", &bootdelay_sec, 0);
+	check_edcl_voodoo(&ms);
+
 	if(bootdelay_sec>0 && bootcmd) {
 		printf("Hit any key (in %lu sec) to skip autoload...",
 			bootdelay_sec);

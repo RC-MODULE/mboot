@@ -70,6 +70,7 @@ int uemd_console_init(void);
 
 #define MEM(addr)  (*((volatile unsigned long int*)(addr)))
 
+
 extern unsigned long g_early_start;
 extern unsigned long g_signature_start;
 

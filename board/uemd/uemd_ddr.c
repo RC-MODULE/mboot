@@ -220,7 +220,7 @@ int uemd_em_init_check(struct memregion *reg)
 		uemd_em_init();
 		em0_size = get_ram_size((volatile long *)PHYS_EM0, PHYS_EM0_SIZE);
 		if(em0_size == PHYS_EM0_SIZE)
-			return 0;
+			goto bailout;
 		udelay(300000);
 	}
 
@@ -234,8 +234,10 @@ int uemd_em_init_check(struct memregion *reg)
 		return -1;
 	}
 
+bailout:
 	reg->start = PHYS_EM0;
 	reg->end = reg->start + em0_size;
+	
 	return 0;
 }
 

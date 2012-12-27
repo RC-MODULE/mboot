@@ -216,12 +216,15 @@ int uemd_em_init_check(struct memregion *reg)
 {
 	int i, em0_size;
 
+	printf("Maximum bank size: 0x%x bytes\n", PHYS_EM0_SIZE );
 	for(i=0;i<10;i++) {
 		uemd_em_init();
 		em0_size = get_ram_size((volatile long *)PHYS_EM0, PHYS_EM0_SIZE);
-		if(em0_size == PHYS_EM0_SIZE)
-			goto bailout;
 		udelay(300000);
+	        if (em0_size > 0x800000 ) {
+			printf("Detected %d bytes of EM0 memory\n", em0_size );
+			goto bailout;
+		}
 	}
 
 	if(em0_size == 0) {

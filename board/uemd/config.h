@@ -40,13 +40,17 @@
 #define FREQ_54       54
 #endif
 
-/* Use only first 16M of RAM */
-#define  CONFIG_UEMD_LO_MEM
+/* 
+ * Each bank can be up to 256M 
+ * If actual chip size < maxsize 
+ * This will be autodetected and atags set as needed
+ * define CONFIG_UEMD_LO_MEM to limit memory to 16M (for testing)
+ */
 
 #ifdef  CONFIG_UEMD_LO_MEM
 #define _PHYS_EM0_SIZE 0x01000000
 #else
-#define _PHYS_EM0_SIZE 0x08000000
+#define _PHYS_EM0_SIZE 0x10000000
 #endif
 
 /*

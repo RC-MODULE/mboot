@@ -21,6 +21,11 @@
  * MA 02111-1307 USA
  */
 
+/* 
+
+console=ttyS0,38400 debug root=/dev/nfs ip=192.168.0.227:192.168.0.1:192.168.0.1:255.255.255.0:rachael:eth0:off nfsroot=192.168.0.1:/home/kmikhailov/builder/target mdemux.use_tuner=2
+ */
+
 #include <common.h>
 #include <netdev.h>
 #include <mtd.h>
@@ -189,6 +194,7 @@ void uemd_init(struct uemd_otp *otp)
 	/* SDRAM */
 	struct memregion sdram;
 	ret = uemd_em_init_check(&sdram);
+	printf("MEMORY: %lx -> %lx\n", sdram.start, sdram.end);
 	uemd_check_zero(ret, goto err, "SDRAM init failed");
 
 	/* MALLOC */
@@ -218,7 +224,7 @@ void uemd_init(struct uemd_otp *otp)
 		MTDPART_INITIALIZER("boot",   0,                  0x40000),
 		MTDPART_INITIALIZER(MTDENV,   MTDPART_OFS_NXTBLK, 0x40000),
 		MTDPART_INITIALIZER(MTDBOOT,  MTDPART_OFS_NXTBLK, 0x800000),
-		MTDPART_INITIALIZER("user",   MTDPART_OFS_NXTBLK, MTDPART_SIZ_FULL),
+		MTDPART_INITIALIZER("user",   MTDPART_OFS_NXTBLK, 128*1024*1024),
 		MTDPART_NULL,
 	};
 
@@ -320,7 +326,6 @@ void uemd_init(struct uemd_otp *otp)
 	uemd_check_zero(ret, goto err, "image move-unpack failed");
 	printf("Linux tags start 0x%p end 0x%p\n", tag_base, tag);
 	printf("Linux entry 0x%08lX\n", ep.addr);
-
 
 	ep.linux_ep(0, machid, tag_base);
 

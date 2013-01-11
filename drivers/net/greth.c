@@ -699,13 +699,17 @@ static int greth_set_hwaddr_from_netdev(struct eth_device *dev)
 	return 0;
 }
 
+static const char __greth_phys[] = CONFIG_GRETH_PHY_ADDRS;
+
 static int greth_reset(greth_priv *greth)
 {
 	struct eth_device *dev;
 	dev = greth->dev;
 	unsigned int start, timeout;
 	int ret;
+	int pos=0;
 
+retry:
 	greth_debug("Resetting GRETH\n");
 
 	/* X msecs to ticks */
@@ -724,15 +728,13 @@ static int greth_reset(greth_priv *greth)
 		}
 	};
 
-#ifdef CONFIG_GRETH_PHY_ADDR
-	greth->phyaddr = CONFIG_GRETH_PHY_ADDR;
+	greth->phyaddr = __greth_phys [pos];
 	greth_debug("greth: using preset PHY addr: %d\n", greth->phyaddr);
-#else
+
 	/* Get the phy address which assumed to have been set
 	   correctly with the reset value in hardware */
-	greth->phyaddr = (GRETH_REGLOAD(&greth->regs->mdio) >> 11) & 0x1F;
-	greth_debug("greth: PHY addr detected: %d\n", greth->phyaddr);
-#endif
+//	greth->phyaddr = (GRETH_REGLOAD(&greth->regs->mdio) >> 11) & 0x1F;
+//	greth_debug("greth: PHY addr detected: %d\n", greth->phyaddr);
 
 	/* Check if mac is gigabit capable */
 	greth->gbit_mac = (GRETH_REGLOAD(&greth->regs->control) >> 27) & 1;
@@ -748,7 +750,13 @@ static int greth_reset(greth_priv *greth)
 	ret = greth_init_phy(greth);
 	if (ret != 0) {
 		/* Failed to init PHY (timedout) */
-		greth_error("Failed to init PHY (%d)\n", ret);
+		
+		pos++;
+		if ((__greth_phys[pos])) {
+	        greth_error("Failed to init PHY (%d) - trying a different PHY addr\n", ret);
+			goto retry;
+                }
+		greth_error("Giving up, phy looks dead", ret);	
 		return ret;
 	}
 

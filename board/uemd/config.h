@@ -123,7 +123,9 @@
 #define CONFIG_GRETH              1
 #define CONFIG_GRETH_BASE         0x20034000
 #define CONFIG_GRETH_IRQ          (-1)
-#define CONFIG_GRETH_PHY_ADDR     0x1F
+
+#define CONFIG_GRETH_PHY_ADDRS     { 0x1F, 0x01, 0x0} 
+
 #define CONFIG_GRETH_PHY_TIMEOUT_MS   3000
 #define CONFIG_GRETH_SWAP_BD
 #define CONFIG_GRETH_DEBUG

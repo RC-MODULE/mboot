@@ -756,7 +756,7 @@ retry:
 	        greth_error("Failed to init PHY (%d) - trying a different PHY addr\n", ret);
 			goto retry;
                 }
-		greth_error("Giving up, phy looks dead", ret);	
+		greth_error("Giving up, phy looks dead\n");	
 		return ret;
 	}
 

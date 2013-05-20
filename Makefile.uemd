@@ -31,9 +31,11 @@ BOARD_BIN = mboot-uemd.bin
 
 BOARD_IMG = mboot-uemd.img
 
+BOARD_SIGN = mboot-signed.bin
+
 .PHONY: all clean install snapshot
 
-all: rules_all $(BOARD_IMG)
+all: rules_all $(BOARD_IMG) $(BOARD_SIGN)
 
 install: $(BOARD_IMG)
 	-@if test -d "$(INSTDIR)" ; then \
@@ -53,6 +55,9 @@ $(BOARD_IMG): $(BOARD_BIN)
 	printf "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" >$@
 	printf "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" >>$@
 	cat $^ >> $@
+
+$(BOARD_SIGN): $(BOARD_IMG)
+	./sign.sh $^
 
 snapshot: $(BOARD_ELF) $(BOARD_IMG)
 	./snapshot $(BOARD_ELF)

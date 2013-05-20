@@ -1075,7 +1075,7 @@ static int mnand_core_read(loff_t off)
 #endif
 
 		if(mnand_get(0) & NAND_STATUS_FAIL) {
-			BUG_ON(1);
+			//BUG_ON(1);
 			return -EIO;
 		}
 

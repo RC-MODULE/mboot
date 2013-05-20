@@ -728,9 +728,15 @@ retry:
 		}
 	};
 
-	greth->phyaddr = __greth_phys [pos];
-	greth_debug("greth: using preset PHY addr: %d\n", greth->phyaddr);
-
+	char *p_addr = getenv("phyaddr");
+	if (p_addr) {
+		greth->phyaddr = (unsigned char) simple_strtoul(p_addr, NULL, 16);
+		greth_debug("greth: using PHY addr from env: %x\n", greth->phyaddr);
+	} else {
+		greth_debug("greth: 'phyaddr' not set, fall back to built-in table\n");
+		greth->phyaddr = __greth_phys [pos];
+		greth_debug("greth: using preset PHY addr: %x\n", greth->phyaddr);
+	}
 	/* Get the phy address which assumed to have been set
 	   correctly with the reset value in hardware */
 //	greth->phyaddr = (GRETH_REGLOAD(&greth->regs->mdio) >> 11) & 0x1F;

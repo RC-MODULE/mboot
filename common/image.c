@@ -7,11 +7,15 @@ int image_move_unpack(const image_info_t *os, union image_entry_point *ep)
     switch (os->comp) {
 	case IH_COMP_NONE:
 	    if (os->payload_load == os->payload_start) {
-		    debug("IMG can execute image in place: type %d load 0x%08lX\n",
+		    printf("IMG can execute image in place: type %d load 0x%08lX\n",
 			    os->type, os->payload_load);
 	    } else {
-		    debug("IMG moving image: type %d from 0x%08lX to 0x%08lX\n",
+		    printf("IMG moving image: type %d from 0x%08lX to 0x%08lX\n",
 			    os->type, os->payload_start, os->payload_load);
+		    uint32_t lda = os->payload_load - 0x40;
+		    /* HACK: use sizeof() instead a magic number */
+		    printf("HINT: To optimize boot time adjust loadaddr to: 0x%08x\n",
+			    lda);
 		    memmove((void *)os->payload_load, (void *)os->payload_start,
 			    os->payload_len);
 	    }

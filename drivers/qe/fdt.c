@@ -28,7 +28,7 @@
 #include <fdt_support.h>
 #include "qe.h"
 
-DECLARE_GLOBAL_DATA_PTR;
+//DECLARE_GLOBAL_DATA_PTR;
 
 /*
  * If a QE firmware has been uploaded, then add the 'firmware' node under

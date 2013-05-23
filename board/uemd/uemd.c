@@ -149,7 +149,7 @@ static struct env_ops g_uemd_env_ops = {
  */
 
 void check_edcl_voodoo(struct main_state *ms) {
-	uint32_t* maddr = (uint32_t*) EDCL_ADDR;
+	volatile uint32_t* maddr = (uint32_t*) EDCL_ADDR;
 	const char* upcmd = getenv("upcmd");
 	printf("Is there a EDCL emergency? ");
 	if (*maddr == EDCL_MAGIC_EMERGENCY) {

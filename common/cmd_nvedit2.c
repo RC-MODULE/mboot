@@ -47,7 +47,7 @@ static int g_env_id = 1;
 
 static int env_read_default(char* buf, size_t *len, void *priv)
 {
-	int free;
+	int free=0;
 	struct env_var *defs = (struct env_var*)(priv);
 	for(;defs->name!=NULL; defs++) {
 		free = setenv(defs->name, defs->val);
@@ -207,7 +207,7 @@ static int setenv_e (const struct estring *ename, const struct estring *eval)
 {
 	char *i, *eoe;
 	struct estring name, val;
-	size_t free, len;
+	size_t free=0, len;
 
 	if(g_env == NULL)
 		return -EPERM;

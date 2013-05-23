@@ -309,7 +309,7 @@ static int greth_real_init(struct eth_device *dev)
 static int greth_init_phy(greth_priv * dev)
 {
 	greth_regs *regs = dev->regs;
-	int tmp, tmp1, tmp2, cfg, i;
+	int tmp=0, tmp1, tmp2, cfg, i;
 	unsigned int start, timeout;
 	int ret;
 

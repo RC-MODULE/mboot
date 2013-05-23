@@ -29,6 +29,8 @@
 #define CONFIG_BOARD_UEMD         1
 #define CONFIG_UEMD_MACH_TYPE     3281
 
+#define CONFIG_OF_LIBFDT
+
 /* Use HIGH-frequency mode */
 #undef CONFIG_UEMD_LO_FREQ
 

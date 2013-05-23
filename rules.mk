@@ -87,8 +87,7 @@ CFLAGS = \
 	-Wall \
 	-Wno-error=unused-but-set-variable\
 	-Werror \
-	-g \
-	-O0
+	-Os
 
 ASFLAGS = $(CFLAGS)
 

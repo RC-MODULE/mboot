@@ -23,7 +23,8 @@ BOARD_OBJS = \
 	board/uemd/start.o \
 	board/uemd/timer.o \
 	$(ARCH_OBJS) \
-	$(CPU_OBJS)
+	$(CPU_OBJS) \
+	$(COBJS-libfdt)
 
 BOARD_ELF = mboot-uemd
 
@@ -49,6 +50,7 @@ clean: rules_clean
 
 include arch/arm/Makefile
 include arch/arm/cpu/arm1176/Makefile
+include lib/libfdt/Makefile
 include rules.mk
 
 $(BOARD_IMG): $(BOARD_BIN)

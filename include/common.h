@@ -63,6 +63,8 @@ typedef volatile unsigned char	vu_char;
 #define BUG_ON(condition) do { if (unlikely((condition)!=0)) BUG(); } while(0)
 #endif /* BUG */
 
+typedef void (interrupt_handler_t)(void *);
+
 #define mboot_check_zero(ret, err, fmt, args...) do { \
 		if((ret) != 0) { printf(fmt, ##args); err ; } \
 	}while(0)

@@ -63,7 +63,11 @@ static struct env_var g_env_def[] = {
 #endif
 	ENV_VAR("bootfile",   CONFIG_BOOTFILE),
 	ENV_VAR("loadaddr",   STR(CONFIG_LOADADDR)),
-	ENV_VAR("upcmd", "mtd scrub 0 0x40000; mtd write 0x40100000 0x0 0x40000"),
+	ENV_VAR("upcmd", "mtd scrub 0 0x80000; mtd erase 0 0x80000; mtd write 0x40100000 0x0 0x40000"),
+	ENV_VAR("fwcmd", "fwupgrade kernel uImage; fwupgrade user filesystem.yaffs2"),
+	ENV_VAR("kernel_size",  "0x800000"),
+	ENV_VAR("user_size",    "0x40000000"),
+	ENV_VAR("parts",    "kernel,user"),
 	ENV_NULL
 };
 
@@ -137,9 +141,11 @@ static struct env_ops g_uemd_env_ops = {
 
 #define EDCL_ADDR  0x00100000
 #define EDCL_MAGIC_EMERGENCY 0xDEADC0DE
+#define EDCL_MAGIC_FACTORY 0x1EAFC0DE
 #define EDCL_MAGIC_READY 0xB00BC0DE
 #define EDCL_MAGIC_GO 0xDEADBEAF
 #define EDCL_MAGIC_DONE 0x1EAFFEEF
+
 /* 
  * EDCL -> INIT
  * UBOOT -> READY
@@ -149,27 +155,44 @@ static struct env_ops g_uemd_env_ops = {
  */
 
 void check_edcl_voodoo(struct main_state *ms) {
+int mode = 0;
 	volatile uint32_t* maddr = (uint32_t*) EDCL_ADDR;
 	const char* upcmd = getenv("upcmd");
-	printf("Is there a EDCL emergency? ");
-	if (*maddr == EDCL_MAGIC_EMERGENCY) {
+	const char* fwcmd = getenv("fwcmd");
+
+	printf("Is there an EDCL emergency? ");
+	switch (*maddr) { 
+	case EDCL_MAGIC_EMERGENCY:
+		mode = 1;
+		break;
+	case EDCL_MAGIC_FACTORY:
+		mode = 2;
+		break;
+		
+	};
+
+	if (mode) {
 		printf("Yes\n");
 		printf("Waiting for host to upload the image...");
 		*maddr = EDCL_MAGIC_READY;
 		while (*maddr != EDCL_MAGIC_GO); 
-		printf("...ready!\n");
-		printf("Debricking the board...");
+		printf("... we have it!\n");
+		printf("Now, debricking the board...");
 		run_command(ms,upcmd,0,NULL);
 		*maddr = EDCL_MAGIC_DONE;
 		printf("...all done\n");
-		printf("Reboot and have a nice day\n");
+		printf("Remove the emergency jumper, reboot and have fun\n");
+		if (mode>1) {
+			printf("Running fwupgrade");
+			run_command(ms,fwcmd,0,NULL);
+		}
 		board_hang();
-	}else
-	{
+	} else {
 		printf("Nope\n");
 	}
-
 }
+
+int mtdparts_add_fromenv(struct mtd_info *master, struct mtd_part *parts, char* env);
 
 
 void uemd_init(struct uemd_otp *otp)
@@ -210,7 +233,7 @@ void uemd_init(struct uemd_otp *otp)
 	printf("\t0x%08X^ stack_ptr\n", CONFIG_SYS_SP_ADDR);
 	printf("\t0x%08X  malloc\n", CONFIG_SYS_MALLOC_ADDR);
 	printf("\t0x%08X  env\n", CONFIG_SYS_ENV_ADDR);
-
+	
 	/* MTD/MNAND */
 	struct mtd_info mtd_mnand = MTD_INITIALISER(MTDALL);
 
@@ -220,32 +243,27 @@ void uemd_init(struct uemd_otp *otp)
 	ret = mtd_add(&mtd_mnand);
 	uemd_check_zero(ret, goto err, "MTD add failed");
 
-	struct mtd_part mtd_parts[] = {
+	struct mtd_part basic_parts[] = {
 		MTDPART_INITIALIZER("boot",   0,                  0x40000),
 		MTDPART_INITIALIZER(MTDENV,   MTDPART_OFS_NXTBLK, 0x40000),
-		MTDPART_INITIALIZER(MTDBOOT,  MTDPART_OFS_NXTBLK, 0x800000),
-		MTDPART_INITIALIZER("user",   MTDPART_OFS_NXTBLK, 128*1024*1024),
-		MTDPART_NULL,
+		MTDPART_NULL
 	};
-
-	ret = mtdparts_add(&mtd_mnand, mtd_parts);
-	uemd_check_zero(ret, goto err, "MTD failed to register parts");
-
+	struct mtd_part *part_env = &basic_parts[1];
 	struct mtd_part *part = NULL;
-	struct mtd_part *part_env = NULL;
-	for_all_mtdparts(part) {
-		const char *envmsg = "";
-		if(!part_env && 0 == strcmp(part->name, MTDENV)) {
-			part_env = part;
-			envmsg = " (env)";
-		}
-		printf("MTD Partition: name %10s off 0x%08llX size 0x%08llX %s\n",
-			part->name, part->offset, part->mtd.size, envmsg);
-	}
+	ret = mtdparts_add(&mtd_mnand, basic_parts);
+	uemd_check_zero(ret, goto err, "MTD failed to register parts");
 
 	/* ENV */
 	ret = env_init(&g_uemd_env_ops, g_env_def, part_env);
 	uemd_check_zero(ret, goto err, "Env init failed");
+
+	ret = mtdparts_add_fromenv(&mtd_mnand, basic_parts, "parts");
+	
+	/* Print all mtd partitions */
+	for_all_mtdparts(part) {
+		printf("MTD Partition: %10s @ 0x%08llX size 0x%08llX\n",
+		       part->name, part->offset, part->mtd.size);		
+	}
 
 	/* ETH */
 	netn = eth_initialize();

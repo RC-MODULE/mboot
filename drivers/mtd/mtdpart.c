@@ -16,6 +16,7 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
+#include <malloc.h>
 #include <linux/mtd/compat.h>
 
 /* Our partition linked list */
@@ -429,3 +430,77 @@ int mtdparts_add(struct mtd_info *master, struct mtd_part *parts)
 	return 0;
 }
 
+
+
+static size_t get_size_from_env(const char* name, size_t def)
+{
+	const char* tmp = getenv(name);
+	if (tmp) {
+		size_t ksize = simple_strtoul(tmp, NULL, 16);
+		if (ksize > 0)
+			return ksize;
+	}
+	return def;
+}
+
+
+int mtdparts_add_fromenv(struct mtd_info *master, struct mtd_part *parts, char* env)
+{
+	uint64_t cur_offset;
+	int i;
+	int ret;
+	char* env_parts = getenv("parts"); 
+	cur_offset = 0;
+	for(i=0, parts; !parts->last; parts++,i++) {
+		ret = add_one_partition(master, parts, i, cur_offset);
+		if(ret != 0) {
+			printf("MTD failed to create partition: mtd %s partno %d\n",
+				master->name, i);
+			return ret;
+		}
+		ret = mtd_add(&parts->mtd);
+		if(ret != 0) {
+			printf("MTD failed to register partition: part \"%s\"\n",
+				parts->name);
+			return ret;
+		}
+
+		cur_offset = parts->offset + parts->mtd.size;
+	}
+	if (!env_parts)
+		return 0;
+	/* Now, parse parts from env */
+	env_parts = strdup(env_parts);
+	char* name = strtok(env_parts,",");
+	while (name) {
+		char tmp[32];
+		size_t size;
+		sprintf(tmp,"%s_size", name);
+		size = get_size_from_env(tmp, 0x40000);
+		struct mtd_part *p = malloc(sizeof(struct mtd_part));
+		if (!p)
+			BUG_ON(1);
+		p->name = name;
+		p->offset = MTDPART_OFS_NXTBLK;
+		p->size = size;	
+		p->last = 0;
+		/* Now, register it! */
+		name = strtok(NULL, ",");
+		i++;
+		ret = add_one_partition(master, p, i, cur_offset);
+		if(ret != 0) {
+			printf("MTD failed to create partition: mtd %s partno %d\n",
+			       master->name, i);
+			return ret;
+		}
+		ret = mtd_add(&p->mtd);
+		if(ret != 0) {
+			printf("MTD failed to register partition: part \"%s\"\n",
+				p->name);
+			return ret;
+		}
+
+		cur_offset = p->offset + p->mtd.size;
+	}
+	return 0;
+}

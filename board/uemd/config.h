@@ -134,9 +134,9 @@
 //#define CONFIG_GRETH_DEBUG_PACKET
 /* General network settings */
 #define CONFIG_NETMASK            "255.255.255.0"
-#define CONFIG_GATEWAYIP          "10.0.0.1"
-#define CONFIG_SERVERIP           "10.0.0.1"
-#define CONFIG_IPADDR             "10.0.0.103"
+#define CONFIG_GATEWAYIP          "192.168.0.1"
+#define CONFIG_SERVERIP           "192.168.0.1"
+#define CONFIG_IPADDR             "192.168.0.7"
 #define CONFIG_ETHADDR            "00:02:F7:00:27:0F"
 #define CONFIG_GRETH_SET_HWADDR
 /* Enables new U-Boot networking stack */
@@ -166,7 +166,7 @@
  * Booting
  */
 #define CONFIG_BOOTDIR    "/tftpboot/smironov-boot"
-#define CONFIG_BOOTFILE    CONFIG_BOOTDIR "/uImage"
+#define CONFIG_BOOTFILE    CONFIG_BOOTDIR "uImage"
 #define CONFIG_LOADADDR    0x40100000
 #define CONFIG_BOOTCOMMAND "tftp;bootm"
 #define CONFIG_BOOTDELAY   10

@@ -364,3 +364,6 @@ U_BOOT_CMD(
 #error Not in UEMD
 #endif
 
+
+extern int do_run (struct cmd_ctx *ctx, int argc, char * const argv[]);
+U_BOOT_CMD(run, CONFIG_SYS_MAXARGS, 1, do_run, "", "");

@@ -1074,11 +1074,6 @@ static int mnand_core_read(loff_t off)
 			g_read_page_pos = 0;
 #endif
 
-		if(mnand_get(0) & NAND_STATUS_FAIL) {
-			//BUG_ON(1);
-			return -EIO;
-		}
-
 		cache_flush();
 
 		if(g_mnand_debug)

@@ -8,6 +8,7 @@ struct fwu_tftp_ctx {
 	u8* block;
 	size_t block_sz;
 	loff_t flash_offset;
+	loff_t op_start;
 	loff_t flash_end;
 	int bb;
 	int last;
@@ -54,18 +55,22 @@ static int fwu_tftp_cb(uint32_t off, u8* buf, size_t len, int last, void* priv)
 				ret = 0;
 			}
 
-			for(retry=0; (retry<5)&&(ctx->block_sz>0); retry++) {
-				printf("FWU rewriting block: off 0x%012llX%s%s\n",
+			for(retry=0; (retry<3)&&(ctx->block_sz>0); retry++) {
+				printf("FWU rewriting block: off 0x%012llX / %lldM %s%s\t\t\r",
 					ctx->flash_offset,
-					bad ? " (BAD)" : "",
-					retry == 0 ? "" : " (again)");
+				        ctx->flash_offset / 1024 / 1024,
+					bad ? " \t(BAD)\n" : "",
+					retry == 0 ? "" : " \t(again)\n");
 
-				ret = mtd_erase1(mtd, ctx->flash_offset);
-				if(ret < 0) {
-					printf("FWU erase err: off 0x%012llX ret %d\n",
-						ctx->flash_offset, ret);
-					continue;
+				if (retry) {
+					ret = mtd_erase1(mtd, ctx->flash_offset);
+					if(ret < 0) {
+						printf("FWU erase err: off 0x%012llX ret %d\n",
+						       ctx->flash_offset, ret);
+						continue;
+					}
 				}
+
 
 				ret = mtd_write(mtd, ctx->flash_offset, ctx->block, mtd->erasesize);
 				if(ret < 0) {
@@ -110,12 +115,54 @@ static void extract_dirname(char *dir, const char* path)
 	dir[p-path]='\0';
 }
 
+
+#define COLS 30 
+static int erase_part(struct mtd_info *mtd)
+{
+	int ret;
+	loff_t len=mtd->size; 
+	printf("FWU: erasing NAND, please stand by...\n");
+	loff_t sz = mtd->size / 1024 / 1024;
+	loff_t mibs = 1024 * 1024 / mtd->erasesize; 
+	int i = mibs;
+	do {
+		/* eyecandy */
+		i--;
+		if (i==0) {
+			i = mibs;
+			printf("FWU: Erasing: %lld out of %lld MiBs\r",
+			       ((mtd->size - len) / 1024 / 1024) + 1, sz);
+		}
+
+		len -= mtd->erasesize;
+		ret = mtd_block_isbad(mtd, len);
+		if(ret < 0) {
+			printf("\nFWU bad block detection failure: off 0x%012llX\n",
+			       len);
+			return -1;
+		}
+		else if (ret == 1) {
+			printf("\nFWU bad block detected: off 0x%012llX\n",
+			       len);
+			continue;
+		}
+
+		ret = mtd_erase1(mtd, len);
+		if(ret < 0) {
+			printf("\nFWU erase err: off 0x%012llX ret %d\n",
+			       len, ret);
+			continue;
+		}	
+	} while (len);
+	printf("\n");
+	return ret;
+}
+
 static int do_fwupgrade(struct cmd_ctx *cmdctx, int argc, char * const argv[])
 {
 	struct mtd_info *mtd = NULL;
 	const char *filename = NULL;
 	int ret;
-
 	switch(argc) {
 		case 3:
 			filename = argv[2];
@@ -171,6 +218,13 @@ static int do_fwupgrade(struct cmd_ctx *cmdctx, int argc, char * const argv[])
 		} else {
 			sprintf(task.bootfile, "%smboot-%s.bin", dir, mtd->name);
 		}
+	}
+	
+	ret = erase_part(mtd);
+	if (ret)
+	{
+		printf("FW: Partition erase failed, aborting...");
+		goto out;
 	}
 
 	ret = NetLoop(&task);

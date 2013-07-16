@@ -54,8 +54,7 @@ include lib/libfdt/Makefile
 include rules.mk
 
 $(BOARD_IMG): $(BOARD_BIN)
-	printf "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" >$@
-	printf "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" >>$@
+	dd if=/dev/zero of=$@ bs=1 count=16
 	cat $^ >> $@
 
 $(BOARD_SIGN): $(BOARD_IMG)

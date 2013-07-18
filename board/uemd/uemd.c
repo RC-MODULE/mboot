@@ -45,12 +45,12 @@ console=ttyS0,38400 debug root=/dev/nfs ip=192.168.0.227:192.168.0.1:192.168.0.1
 #define _MK_STR(x)	#x
 #define STR(x)	_MK_STR(x)
 
-#define CONFIG_BOOTARGS    "earlyprintk=serial console=ttyS0,38400n8 root=/dev/nfs nfsroot=10.0.0.1:/home/smironov/arm-module2-linux-gnueabi ip=10.0.0.2:10.0.0.1:10.0.0.1:255.255.255.0:UEMD:eth0:off greth.pure10Mbit=1 debug"
+#define CONFIG_BOOTARGS    "console=ttyS0,38400n8 root=/dev/mtdblock3 rootfstype=yaffs2 rootflags=inband-tags yaffs.yaffs2_auto_checkpoint=2"
 
 #define CONFIG_BOOTARGS_MTD "earlyprintk=serial console=ttyS0,38400n8 root=/dev/mtdblock3 ip=10.0.0.2:10.0.0.1:10.0.0.1:255.255.255.0:UEMD:eth0:off debug"
 
 static struct env_var g_env_def[] = {
-	ENV_VAR("bootargs",   CONFIG_BOOTARGS_MTD),
+	ENV_VAR("bootargs",   CONFIG_BOOTARGS),
 	ENV_VAR("bootcmd",    CONFIG_BOOTCOMMAND),
 	ENV_VAR("bootdelay",  STR(CONFIG_BOOTDELAY)),
 	ENV_VAR("ethaddr",    CONFIG_ETHADDR),
@@ -70,6 +70,7 @@ static struct env_var g_env_def[] = {
 	ENV_VAR("parts",    "kernel,user"),
 	ENV_NULL
 };
+
 
 void board_reset(void)
 {
@@ -141,10 +142,7 @@ static struct env_ops g_uemd_env_ops = {
 
 #define EDCL_ADDR  0x00100000
 #define EDCL_MAGIC_EMERGENCY 0xDEADC0DE
-#define EDCL_MAGIC_FACTORY 0x1EAFC0DE
-#define EDCL_MAGIC_READY 0xB00BC0DE
 #define EDCL_MAGIC_GO 0xDEADBEAF
-#define EDCL_MAGIC_DONE 0x1EAFFEEF
 
 /* 
  * EDCL -> INIT
@@ -155,38 +153,24 @@ static struct env_ops g_uemd_env_ops = {
  */
 
 void check_edcl_voodoo(struct main_state *ms) {
-int mode = 0;
+	int mode = 0;
 	volatile uint32_t* maddr = (uint32_t*) EDCL_ADDR;
-	const char* upcmd = getenv("upcmd");
-	const char* fwcmd = getenv("fwcmd");
+	char tmpcmd[512];
 
 	printf("Is there an EDCL emergency? ");
-	switch (*maddr) { 
-	case EDCL_MAGIC_EMERGENCY:
-		mode = 1;
-		break;
-	case EDCL_MAGIC_FACTORY:
-		mode = 2;
-		break;
-		
+	if (*maddr == EDCL_MAGIC_EMERGENCY) { 
+		mode++;
+		printf("Yes, now in slave mode\n");
 	};
 
 	if (mode) {
-		printf("Yes\n");
-		printf("Waiting for host to upload the image...");
-		*maddr = EDCL_MAGIC_READY;
-		while (*maddr != EDCL_MAGIC_GO); 
-		printf("... we have it!\n");
-		printf("Now, debricking the board...");
-		run_command(ms,upcmd,0,NULL);
-		*maddr = EDCL_MAGIC_DONE;
-		printf("...all done\n");
-		printf("Remove the emergency jumper, reboot and have fun\n");
-		if (mode>1) {
-			printf("Running fwupgrade");
-			run_command(ms,fwcmd,0,NULL);
+		while(1) { 
+			*maddr = (uint32_t) tmpcmd;
+			while (*maddr != EDCL_MAGIC_GO); 
+			printf("got cmd: %s\n", tmpcmd);
+			run_command(ms, tmpcmd, 0, NULL);
 		}
-		board_hang();
+
 	} else {
 		printf("Nope\n");
 	}

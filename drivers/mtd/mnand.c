@@ -249,6 +249,8 @@ struct mnand_chip {
 
 	uint32_t ecc_corrected;
 	uint32_t ecc_failed;
+	uint64_t chip_size[2]; 
+	uint32_t cs; /* cs */
 };
 
 static struct mnand_chip g_chip;
@@ -302,8 +304,9 @@ void mnand_set(uint32_t addr, uint32_t val)
 
 	g_write_buffer[g_write_pos++] = wi;
 #endif
-
+	
 	TRACE( "nand(0x%08X) <= 0x%08X", (uint32_t)(g_chip.io+addr), val);
+
 	iowrite32(val, g_chip.io + addr);
 }
 
@@ -313,6 +316,28 @@ uint32_t mnand_get(uint32_t addr)
 	TRACE( "nand(0x%08X) => 0x%08X", (uint32_t)(g_chip.io+addr), r);
 	return r;
 } 
+
+void mnand_cs(int cs) 
+{
+	uint32_t tmp;
+	BUG_ON(cs>1);
+	g_chip.cs = cs << 26;
+	tmp = mnand_get(NAND_REG_CONTROL);
+	tmp &= ~(1 << 26);
+	tmp |= cs << 26;
+	mnand_set(NAND_REG_CONTROL, tmp);
+}
+
+off_t mnand_chip_offset(off_t size) 
+{
+	int cs = 0;
+	if (size >= g_chip.chip_size[0]) {
+		cs++;
+		size-=g_chip.chip_size[0];
+	}
+	mnand_cs(cs);
+	return size;
+}
 
 void mnand_reg_dump(void)
 {
@@ -478,7 +503,7 @@ void mnand_hw_init(void)
 	// perform READ ID operation
 	val = (1 << 25) | ((2048+64) << 11) | (1 << 10);
 	val |= g_mnand_calculate_ecc ? (1<<7) : 0;
-	mnand_set(NAND_REG_CONTROL, val);    
+	mnand_set(NAND_REG_CONTROL, val | g_chip.cs);    
 
 	// setting default values for AXI MASTER for read from system memory
 	mnand_set(NAND_REG_DATA_CHANNEL_CONFIG, 0xC0);
@@ -551,6 +576,8 @@ static int mnand_core_erase(loff_t off)
 {
 	int ret;
 	MARK();
+
+	off = mnand_chip_offset(off);
 
 	if(g_chip.state != MNAND_IDLE) {
 		ERR("flash is in error state");
@@ -1033,9 +1060,13 @@ int ecc_is_empty(unsigned char ecc[MNAND_ECC_BYTESPERBLOCK])
 
 static int mnand_core_read(loff_t off)
 {
-	loff_t page = off & (~(g_chip.mtd->writesize-1));
-	size_t corrected = 0;
-	size_t failed = 0;
+        loff_t page;  
+        size_t corrected = 0;
+        size_t failed = 0;
+
+	off = mnand_chip_offset(off);
+	page = off & (~(g_chip.mtd->writesize-1));
+
 	int ret;
 
 	if(g_chip.state != MNAND_IDLE) {
@@ -1145,6 +1176,9 @@ static int mnand_core_write(loff_t off)
 		ERR("flash is in error state");
 		return -EINVAL;
 	}
+	
+	off = mnand_chip_offset(off);
+
 	BUG_ON(!mnand_ready());
 
 	mnand_reset_grabber();
@@ -1181,22 +1215,33 @@ static int mnand_core_write(loff_t off)
 	return (mnand_get(0) & NAND_STATUS_FAIL) ? -EIO : 0;
 }
 
-static int mnand_read_id(struct mtd_info *mtd) 
+static int mnand_read_id(struct mtd_info *mtd, int cs) 
 {
-	int ret;
+	int ret, i;
 	uint8_t id;
 	uint8_t extid;
+	u_long tmp;
 	struct nand_flash_dev def_type = CONFIG_MNAND_DEFAULT_TYPE;
 	struct nand_flash_dev* type = &def_type;
+
+	mnand_cs(cs);
 
 	if(g_chip.state != MNAND_IDLE) {
 		ERR("flash is in error state");
 		return -EINVAL;
 	}
 
-	ret = mnand_core_read_id(2);
-	if(ret<0)
-		return ret;
+	/* hw weirdness: sometimes after an unlucky reset or incomplete
+	 * powerdown a bad id may be read. 
+	 */
+	
+	for (i=0; i<5; i++) {
+		ret = mnand_core_read_id(2);
+		if(ret<0)
+			return ret;
+		if (*(((uint8_t*)g_chip.dma_area)+1)!=0x00)
+			break;
+        }
 
 	id = *(((uint8_t*)g_chip.dma_area)+1);
 
@@ -1213,7 +1258,9 @@ static int mnand_read_id(struct mtd_info *mtd)
 		ERR("WARNING: Unknown flash ID. Using default (0x%02X)", type->id);
 	}
 
-	mtd->size = (uint64_t)type->chipsize << 20;
+#define NBUG(a,b) \
+	{ if (cs && (a!=b)) goto inconsistent; }
+
 
 	ret = mnand_core_read_id(5);
 	if(ret <0)
@@ -1222,22 +1269,36 @@ static int mnand_read_id(struct mtd_info *mtd)
 	extid = ((uint8_t*)g_chip.dma_area)[3];
 	INFO( "flash ext_id 0x%02X", extid);
 
-	mtd->writesize = 1024 << (extid & 0x3);
+	tmp = 1024 << (extid & 0x3);
+	NBUG(mtd->writesize, tmp);
+	mtd->writesize = tmp;
+	extid >>= 2;
+	
+
+	tmp = (8 << (extid & 0x01)) * (mtd->writesize >> 9);
+	NBUG(mtd->oobsize, tmp);
+	mtd->oobsize = tmp;
 	extid >>= 2;
 
-	mtd->oobsize = (8 << (extid & 0x01)) * (mtd->writesize >> 9);
-	extid >>= 2;
+	tmp = (64 * 1024) << (extid & 0x03);
+	NBUG(mtd->erasesize, tmp);
+	mtd->erasesize = tmp; 
 
-	mtd->erasesize = (64 * 1024) << (extid & 0x03);
-
-	INFO("%s size(%lu) writesize(%u) oobsize(%u) erasesize(%u)",
-		type->name, type->chipsize, mtd->writesize, mtd->oobsize, mtd->erasesize);
+	INFO("CS%d %s size(%lu) writesize(%u) oobsize(%u) erasesize(%u)",
+	     cs, type->name, type->chipsize, mtd->writesize, mtd->oobsize, mtd->erasesize);
 
 	if(mtd->erasesize != 0x20000 || mtd->writesize != 2048) {
 		ERR("WARNING: unsupported flash. This driver supports writesize 2048 erasesize 128K only");
 	}
 
+	mtd->size += (uint64_t)type->chipsize << 20;
+	g_chip.chip_size[cs] = (uint64_t)type->chipsize << 20;	
 	return 0;
+
+inconsistent: 
+	printk("mnand: Chip configurations differ, ignoring CS1\n");
+	g_chip.chip_size[cs] = 0;	
+	return -EIO;
 }
 
 
@@ -1574,7 +1635,7 @@ static int mnand_read(struct mtd_info* mtd, loff_t off, size_t len,
  */
 int mnand_init(struct mtd_info* mtd) 
 {
-	int ret;
+	int ret, i;
 	uint32_t base = CONFIG_MNAND_BASE;
 
 	MARK();
@@ -1610,10 +1671,12 @@ int mnand_init(struct mtd_info* mtd)
 
 	mnand_reset(mtd);
 
-	ret = mnand_read_id(mtd);
-	if(ret != 0) {
-		ERR("Unable to read id: %d", ret);
-		goto err_dma;
+	for (i = 0; i<2; i++) { 
+		ret = mnand_read_id(mtd, i);
+		if(ret != 0) {
+			ERR("Unable to read id: %d", ret);
+			goto err_dma;
+		}
 	}
 
 #if defined(CONFIG_MTD_DEVICE)

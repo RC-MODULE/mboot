@@ -125,6 +125,8 @@ static int erase_part(struct mtd_info *mtd)
 	loff_t sz = mtd->size / 1024 / 1024;
 	loff_t mibs = 1024 * 1024 / mtd->erasesize; 
 	int i = mibs;
+
+	
 	do {
 		/* eyecandy */
 		i--;
@@ -135,18 +137,10 @@ static int erase_part(struct mtd_info *mtd)
 		}
 
 		len -= mtd->erasesize;
-		ret = mtd_block_isbad(mtd, len);
-		if(ret < 0) {
-			printf("\nFWU bad block detection failure: off 0x%012llX\n",
-			       len);
-			return -1;
-		}
-		else if (ret == 1) {
-			printf("\nFWU bad block detected: off 0x%012llX\n",
-			       len);
-			continue;
-		}
-
+		/* 
+		   We do not check for any bad blocks here.
+		   They will be habdled later on 
+		*/
 		ret = mtd_erase1(mtd, len);
 		if(ret < 0) {
 			printf("\nFWU erase err: off 0x%012llX ret %d\n",

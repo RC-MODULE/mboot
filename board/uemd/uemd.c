@@ -152,6 +152,7 @@ static struct env_ops g_uemd_env_ops = {
  * UBOOT writes the image, upgrade is done 
  */
 
+void env_load_defaults(struct env_var *defs);
 void check_edcl_voodoo(struct main_state *ms) {
 	int mode = 0;
 	volatile uint32_t* maddr = (uint32_t*) EDCL_ADDR;
@@ -161,6 +162,8 @@ void check_edcl_voodoo(struct main_state *ms) {
 	if (*maddr == EDCL_MAGIC_EMERGENCY) { 
 		mode++;
 		printf("Yes, now in slave mode\n");
+		/* Now, force-reset env, just in case */
+		env_load_defaults(g_env_def);
 	};
 
 	if (mode) {

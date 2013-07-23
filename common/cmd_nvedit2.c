@@ -45,6 +45,8 @@ static size_t g_env_sz = 0;
 static void* g_env_priv = NULL;
 static int g_env_id = 1;
 
+
+
 static int env_read_default(char* buf, size_t *len, void *priv)
 {
 	int free=0;
@@ -126,6 +128,14 @@ def:
 
 	g_env[MIN(sz, g_env_sz-1)] = EOE;
 	return 0;
+}
+
+void env_load_defaults(struct env_var *defs) {
+	g_env[0] = EOE;
+	size_t sz = (size_t) CONFIG_SYS_ENV_SIZE;
+	env_read_default(g_env, &sz, defs);
+	g_env[MIN(sz, g_env_sz-1)] = EOE;
+
 }
 
 static char* env_next(char *p, struct estring *pname, struct estring *pval)

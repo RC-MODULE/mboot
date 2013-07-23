@@ -435,6 +435,9 @@ int mtdparts_add(struct mtd_info *master, struct mtd_part *parts)
 static size_t get_size_from_env(const char* name, size_t def)
 {
 	const char* tmp = getenv(name);
+	if (strcmp(tmp,"-")==0)
+		return 0;
+
 	if (tmp) {
 		size_t ksize = simple_strtoul(tmp, NULL, 16);
 		if (ksize > 0)
@@ -482,7 +485,10 @@ int mtdparts_add_fromenv(struct mtd_info *master, struct mtd_part *parts, char* 
 			BUG_ON(1);
 		p->name = name;
 		p->offset = MTDPART_OFS_NXTBLK;
-		p->size = size;	
+		if (size)
+			p->size = size;
+		else
+			p->size= MTDPART_SIZ_FULL;
 		p->last = 0;
 		/* Now, register it! */
 		name = strtok(NULL, ",");

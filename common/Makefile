@@ -18,6 +18,7 @@ COBJS-y += cmd_help.o
 #COBJS-y += cmd_nvedit.o
 COBJS-y += cmd_nvedit2.o
 COBJS-y += cmd_version.o
+COBJS-y += cmd_part.o
 #COBJS-y += env_common.o
 #COBJS-$(CONFIG_ENV_IS_IN_DATAFLASH) += env_dataflash.o
 #COBJS-$(CONFIG_ENV_IS_IN_EEPROM) += env_eeprom.o

@@ -447,29 +447,19 @@ static size_t get_size_from_env(const char* name, size_t def)
 }
 
 
-int mtdparts_add_fromenv(struct mtd_info *master, struct mtd_part *parts, char* env)
+int mtdparts_add_fromenv(struct mtd_info *master, char* env)
 {
 	uint64_t cur_offset;
-	int i;
+	int i=0;
 	int ret;
-	char* env_parts = getenv("parts"); 
+	char* env_parts = getenv(env); 
 	cur_offset = 0;
-	for(i=0, parts; !parts->last; parts++,i++) {
-		ret = add_one_partition(master, parts, i, cur_offset);
-		if(ret != 0) {
-			printf("MTD failed to create partition: mtd %s partno %d\n",
-				master->name, i);
-			return ret;
-		}
-		ret = mtd_add(&parts->mtd);
-		if(ret != 0) {
-			printf("MTD failed to register partition: part \"%s\"\n",
-				parts->name);
-			return ret;
-		}
-
-		cur_offset = parts->offset + parts->mtd.size;
+	struct mtd_part *part;
+	for_all_mtdparts(part) {
+		cur_offset = part->offset + part->mtd.size;		
+		i++;
 	}
+
 	if (!env_parts)
 		return 0;
 	/* Now, parse parts from env */

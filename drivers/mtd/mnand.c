@@ -7,6 +7,7 @@
  *
  * This code is GPL
  */
+
 #include <common.h>
 #include <nand.h>
 #include <linux/mtd/mtd.h>
@@ -1668,7 +1669,7 @@ int mnand_init(struct mtd_info* mtd)
 	mtd->write_oob = mnand_write_oob;
 	mtd->ecclayout = &g_ecclayout;
 	mtd->priv = &g_chip;
-
+	mtd->oobavail = g_ecclayout.oobavail;
 	mnand_reset(mtd);
 
 	for (i = 0; i<2; i++) { 

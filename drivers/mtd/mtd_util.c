@@ -221,10 +221,11 @@ err:
 /* 
  * Erases the mtd in range [offset, offset+size).
  * skipbb == 1 - Don't erase blocks marked as bad.
+ * markbad == 1 - Mark blocks failing to erase as bad
  * Returns: >=0  - ok, number of bad blocks (if skipbb), <0 - error code
  */
 int mtd_erase_blocks(
-	struct mtd_info *mtd, uint64_t offset, uint64_t size, int skipbb)
+	struct mtd_info *mtd, uint64_t offset, uint64_t size, int skipbb, int markbad)
 {
 	int bb;
 	int ret;
@@ -250,15 +251,15 @@ int mtd_erase_blocks(
 	erase.mtd = mtd;
 	erase.len  = mtd->erasesize;
 	erase.addr = offset;
-
 	ret = 0;
 	bb = 0;
-
-	for(erase.addr=offset; erase.addr<(offset+size); erase.addr+=mtd->erasesize) {
-
+	int n=0;
+	uint64_t addr;
+	for(addr=offset; addr<(offset+size); addr+=mtd->erasesize) {
+		erase.addr = addr;
 		WATCHDOG_RESET ();
-
-		if(skipbb) {
+		n++;
+		if (skipbb) {
 			ret = mtd->block_isbad(mtd, erase.addr);
 			if(ret < 0) {
 				printf("MTD bad block detection failure: offset 0x%08llX\n",
@@ -272,16 +273,23 @@ int mtd_erase_blocks(
 				ret = 0;
 				continue;
 			}
-		}
+		} 
 
 		ret = mtd->erase(mtd, &erase);
 		if (ret != 0) {
 			printf("MTD erase failure: off 0x%08llX ret %d\n",
 				erase.addr, ret);
+			if (markbad) {
+				mtd_block_markbad(mtd, erase.addr);
+				printf("Marked as bad\n");
+				bb+=1;
+				continue;
+			}
 			goto err;
 		}
 	}
 
+	printf("erase: %d blocks processed; %d were bad\n", n, bb);
 	return bb;
 
 err:

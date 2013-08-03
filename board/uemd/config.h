@@ -165,11 +165,10 @@
 /*
  * Booting
  */
-#define CONFIG_BOOTDIR    "/tftpboot/smironov-boot"
-#define CONFIG_BOOTFILE    CONFIG_BOOTDIR "uImage"
+#define CONFIG_BOOTFILE    "uImage"
 #define CONFIG_LOADADDR    0x40100000
-#define CONFIG_BOOTCOMMAND "tftp;bootm"
-#define CONFIG_BOOTDELAY   10
+#define CONFIG_BOOTCOMMAND "mtdboot;bootm"
+#define CONFIG_BOOTDELAY   2
 
 /*
  * Commands configurationn

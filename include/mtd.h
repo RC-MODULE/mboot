@@ -27,6 +27,24 @@ static inline int mtd_write(struct mtd_info *info, loff_t ofs, u_char *buf, size
 	return info->write(info, ofs, len, &tmp, buf);
 }
 
+static inline int mtd_writeoob(struct mtd_info *info, loff_t ofs, u_char *buf, size_t len)
+{
+//	printf("!\n");
+	struct mtd_oob_ops ops = {
+		.datbuf = (uint8_t*) buf,
+		.len = len,
+		.mode = MTD_OOB_AUTO,
+		.oobbuf = (uint8_t*) buf + info->writesize,
+		.ooblen = info->oobavail,
+		.ooboffs = 0
+	};
+	int ret = info->write_oob(info, ofs, &ops);
+//	printf("OK!\n");
+	return ret;
+}
+
+
+
 static inline int mtd_erase1(struct mtd_info *mtd, loff_t ofs)
 {
 	struct erase_info erase;
@@ -36,6 +54,17 @@ static inline int mtd_erase1(struct mtd_info *mtd, loff_t ofs)
 	erase.addr = ofs;
 	return mtd->erase(mtd, &erase);
 }
+
+static inline int mtd_scrub1(struct mtd_info *mtd, loff_t ofs)
+{
+	struct erase_info erase;
+	memset(&erase, 0, sizeof(erase));
+	erase.mtd = mtd;
+	erase.len = mtd->erasesize;
+	erase.addr = ofs;
+	return mtd->erase(mtd, &erase);
+}
+
 
 static inline int mtd_block_isbad(struct mtd_info *info, loff_t ofs)
 {
@@ -103,7 +132,7 @@ int mtd_overwrite_pages(struct mtd_info* mtd,
 
 int mtd_erase_blocks(struct mtd_info *mtd,
 	uint64_t offset,
-	uint64_t size, int skipbb);
+        uint64_t size, int skipbb, int markbad);
 
 #endif
 

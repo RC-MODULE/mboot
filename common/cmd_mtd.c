@@ -198,7 +198,7 @@ int do_mtd(struct cmd_ctx *ctx, int argc, char * const argv[])
 			size = mtd->erasesize;
 		}
 
-		ret = mtd_erase_blocks(mtd, off, size, (cmd[0] == 'e'));
+		ret = mtd_erase_blocks(mtd, off, size, (cmd[0] == 'e'), 0);
 		if(ret < 0)
 			printf("mtd_erase_opts failed: ret %d\n", ret);
 

@@ -63,8 +63,6 @@ static struct env_var g_env_def[] = {
 #endif
 	ENV_VAR("bootfile",   CONFIG_BOOTFILE),
 	ENV_VAR("loadaddr",   STR(CONFIG_LOADADDR)),
-	ENV_VAR("upcmd", "mtd scrub 0 0x80000; mtd erase 0 0x80000; mtd write 0x40100000 0x0 0x40000"),
-	ENV_VAR("fwcmd", "fwupgrade kernel uImage; fwupgrade user filesystem.yaffs2"),
 	ENV_VAR("kernel_size",  "0x800000"),
 	ENV_VAR("user_size",    "0x40000000"),
 	ENV_VAR("parts",    "kernel,user"),
@@ -179,7 +177,30 @@ void check_edcl_voodoo(struct main_state *ms) {
 	}
 }
 
-int mtdparts_add_fromenv(struct mtd_info *master, struct mtd_part *parts, char* env);
+int mtdparts_add_fromenv(struct mtd_info *master, char* env);
+
+
+static struct mtd_info *mtd_master; 
+static int pscanned;
+static int do_pscan (struct cmd_ctx *ctx, int argc, char * const argv[])
+{
+	if (pscanned) {
+		printf("Partition table already scanned. \n");
+		return 0;
+	}
+
+	struct mtd_part *part; 
+	int ret = mtdparts_add_fromenv(mtd_master, "parts");
+	
+	/* Print all mtd partitions */
+	for_all_mtdparts(part) {
+		printf("MTD Partition: %10s @ 0x%08llX size 0x%08llX\n",
+		       part->name, part->offset, part->mtd.size);		
+	}
+	pscanned++;
+	return ret;
+
+} 
 
 
 void uemd_init(struct uemd_otp *otp)
@@ -223,6 +244,7 @@ void uemd_init(struct uemd_otp *otp)
 	
 	/* MTD/MNAND */
 	struct mtd_info mtd_mnand = MTD_INITIALISER(MTDALL);
+	mtd_master = &mtd_mnand;
 
 	ret = mnand_init(&mtd_mnand);
 	uemd_check_zero(ret, goto err, "MNAND init failed");
@@ -237,20 +259,13 @@ void uemd_init(struct uemd_otp *otp)
 	};
 	struct mtd_part *part_env = &basic_parts[1];
 	struct mtd_part *part = NULL;
+
 	ret = mtdparts_add(&mtd_mnand, basic_parts);
 	uemd_check_zero(ret, goto err, "MTD failed to register parts");
 
 	/* ENV */
 	ret = env_init(&g_uemd_env_ops, g_env_def, part_env);
 	uemd_check_zero(ret, goto err, "Env init failed");
-
-	ret = mtdparts_add_fromenv(&mtd_mnand, basic_parts, "parts");
-	
-	/* Print all mtd partitions */
-	for_all_mtdparts(part) {
-		printf("MTD Partition: %10s @ 0x%08llX size 0x%08llX\n",
-		       part->name, part->offset, part->mtd.size);		
-	}
 
 	/* ETH */
 	netn = eth_initialize();
@@ -262,12 +277,15 @@ void uemd_init(struct uemd_otp *otp)
 	struct main_state ms;
 	main_state_init(&ms);
 
+	check_edcl_voodoo(&ms);
+	
+	run_command(&ms, "partscan", 0, NULL);
+ 
 	ulong bootdelay_sec;
 	const char *bootcmd;
 
 	bootcmd = getenv("bootcmd");
 	getenv_ul("bootdelay", &bootdelay_sec, 0);
-	check_edcl_voodoo(&ms);
 
 	if(bootdelay_sec>0 && bootcmd) {
 		printf("Hit any key (in %lu sec) to skip autoload...",
@@ -343,3 +361,8 @@ err_noconsole:
 	return;
 }
 
+U_BOOT_CMD(
+	partscan, 1, 0,	do_pscan,
+	"Build the partition table",
+	""
+);

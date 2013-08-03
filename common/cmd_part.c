@@ -31,7 +31,8 @@
 
 extern char console_buffer[];
 
-int do_pmgr (struct cmd_ctx *ctx, int argc, char * const argv[])
+
+static int do_pmgr (struct cmd_ctx *ctx, int argc, char * const argv[])
 {
 	int len;
 	char* name; 
@@ -96,9 +97,12 @@ bailout:
 
 /* -------------------------------------------------------------------- */
 
+
 U_BOOT_CMD(
 	pmgr, 1, 0,	do_pmgr,
 	"NAND partition manager",
 	""
 );
+
+
 

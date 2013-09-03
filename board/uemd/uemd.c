@@ -333,13 +333,13 @@ void uemd_init(struct uemd_otp *otp)
 	int first = 1;
 	for_all_mtdparts_of(part, MTDALL) {
 		if(first) {
-			linux_tag_cmdline_add(&cmdline, "mtdparts=%s:0x%llX",
-				MTDALL,part->mtd.size);
+			linux_tag_cmdline_add(&cmdline, "mtdparts=%s:0x%llX@0x%llX(%s)",
+					      MTDALL,part->mtd.size,part->offset,part->mtd.name);
 			first = 0;
 		}
 		else
-			linux_tag_cmdline_add(&cmdline, ",0x%llX",
-				part->mtd.size);
+			linux_tag_cmdline_add(&cmdline, ",0x%llX@0x%llX(%s)",
+				part->mtd.size,part->offset,part->mtd.name);
 	}
 	linux_tag_cmdline_end(&tag, &cmdline);
 	linux_tag_end(&tag);

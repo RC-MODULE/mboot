@@ -2,6 +2,7 @@
 #include <command.h>
 #include <errno.h>
 #include <mtd.h>
+#include <asm/sizes.h>
 
 struct fwu_tftp_ctx {
 	struct mtd_info *mtd;
@@ -176,6 +177,197 @@ static int do_perase(struct cmd_ctx *cmdctx, int argc, char * const argv[])
 	return 0;
 }
 
+extern volatile uint32_t *g_uemd_magic;
+
+#define MAGIC_READY 0xa1
+#define MAGIC_DONE  0x0
+
+
+
+
+/* 
+   SLAVE: these are the settings es
+   HOST: Okay
+   SLAVE: Buffer
+   Host: Ready
+   SLAVE: Buffer
+   Host: Ready
+   ....
+   Slave: Buffer
+   Host: Done
+ */
+
+struct efw_settings {
+	uint32_t erase_size;
+	uint32_t oob_size;
+	uint64_t size; 
+};
+
+
+
+static int write_block(struct mtd_info* mtd, uint64_t* offset, unsigned char* buf, unsigned char* tmpbuf, int has_oob)
+{
+	
+	int ret=0;
+	int retry;
+	int markbad=0;
+next:
+	markbad = 0;
+	ret = mtd_block_isbad(mtd, *offset);
+	if(ret < 0) {
+		printf("\nFWU bad block detection failure: off 0x%012llX\n",
+		       *offset);
+		return -1;
+	}
+	else if (ret == 1) {
+		printf("\nFWU bad block detected: off 0x%012llX\n",
+		       *offset);
+		*offset += mtd->erasesize;
+		goto next;
+	}
+	
+	for(retry=0; (retry<3); retry++) {
+		printf("FWU rewriting block: off 0x%012llX / %lldM %s %d\t\t\r",
+		       *offset,
+		       *offset / 1024 / 1024,
+		       retry == 0 ? "" : " \t(again)\n", retry);
+		
+		if (retry) {
+			ret = mtd_erase1(mtd, *offset);
+			if(ret < 0) {
+				printf("\nFWU erase err: off 0x%012llX ret %d\n",
+				       *offset, ret);
+				markbad = 1;
+				continue;
+			}
+		}
+		
+		if (!has_oob)
+			ret = mtd_write(mtd, *offset, buf, mtd->erasesize);
+		else {
+			int tmp; 
+			for (tmp=0; tmp < (mtd->erasesize / mtd->writesize); tmp++ ) {
+				ret = mtd_writeoob(mtd, 
+						   *offset + (tmp * mtd->writesize), 
+						   buf + tmp * (mtd->writesize + mtd->oobsize), 
+						   mtd->writesize);
+				if (ret<0)
+					break;
+			}
+		}
+		
+		if(ret < 0) {
+			printf("\nFWU write err: off 0x%012llX ret %d\n",
+			       *offset, ret);
+			markbad = 1;
+			continue;
+		}
+		
+		/* read back to force hardware CRC checks */
+		ret = mtd_read(mtd, *offset, tmpbuf, mtd->erasesize);
+		if(ret < 0) {
+			printf("\nFWU checkread err: off 0x%012llX ret %d\n",
+			       *offset, ret);
+			markbad = 1;
+			continue;
+		}
+		*offset += mtd->erasesize;
+		break;
+	}
+
+	if (markbad) {
+		printf("\nFWU failed to overwrite block, skipping it and marking bad: off 0x%012llX ret %d\n",
+		       *offset, ret);
+		mtd_erase1(mtd, *offset); /* Try to make sure block is somewhat clean */
+		mtd_block_markbad(mtd, *offset);
+		*offset += mtd->erasesize;
+		goto next;
+	}
+	return 0;
+}
+
+
+#define e_do_sync(buffer)						\
+	while (1) {							\
+		volatile uint32_t tmp = *g_uemd_magic;			\
+		if (*g_uemd_magic == MAGIC_DONE)			\
+			goto out;					\
+									\
+		if (tmp != (volatile uint32_t) buffer)	\
+			break;						\
+									\
+	}
+
+static int do_eupgrade(struct cmd_ctx *cmdctx, int argc, char * const argv[])
+{
+	struct mtd_info *mtd = mtd_by_name(argv[1]);
+	int ret;
+	struct efw_settings es; 
+	unsigned long laddr; 
+	unsigned char* buffer0;
+	unsigned char* buffer1; 
+	unsigned char* buffer2; 
+	uint64_t offset = 0;
+	getenv_ul("loadaddr", &laddr, 0);
+	if (laddr == 0)
+	{
+		printf("Bad loadaddr\n");
+		return -1;
+	}
+	buffer0 = ((unsigned char*) laddr);
+	buffer1 = buffer0 + SZ_1M;
+	buffer2 = buffer1 + SZ_1M;
+	printf("buffer   0 @ %x\n", (unsigned int) buffer0);
+	printf("buffer   1 @ %x\n", (unsigned int) buffer1);
+	printf("readback   @ %x\n", (unsigned int) buffer2);
+
+	if (mtd == NULL) {
+		printf("FWU mtd device is not available (bad part name?)\n");
+		return -1;
+	}
+
+	es.erase_size = mtd->erasesize;
+	es.oob_size   = mtd->oobsize;
+	es.size       = mtd->size;
+
+	ret = erase_part(mtd, 0, 1);
+	if (ret)
+	{
+		printf("FW: Partition erase failed, aborting...\n");
+		return -1;
+	}
+	
+	*g_uemd_magic = (uint32_t) &es;
+	while (*g_uemd_magic != MAGIC_READY);;
+	printf("FW: sent info\n");
+
+	*g_uemd_magic = (uint32_t) buffer0;
+	while (*g_uemd_magic != MAGIC_READY);;
+
+	printf("FW: got b0\n");
+
+	while (1) 
+	{	
+		*g_uemd_magic = (uint32_t) buffer1;
+
+		write_block(mtd, &offset, buffer0, buffer2, 0);
+		
+		e_do_sync(buffer1);
+
+		*g_uemd_magic = (uint32_t) buffer0;
+
+		write_block(mtd, &offset, buffer1, buffer2, 0);
+
+		e_do_sync(buffer0);
+		
+	}
+out:
+	printf("\nFW: done \n");
+	*g_uemd_magic = 0x0;
+	return 0;
+}
+
+
 static int do_fwupgrade(struct cmd_ctx *cmdctx, int argc, char * const argv[])
 {
 	struct mtd_info *mtd = NULL;
@@ -282,6 +474,14 @@ U_BOOT_CMD(
 	"     boot ..... dir($(bootfile))/mboot.img\n" 
 	"     kernel ... dir($(bootfile))/uImage\n" 
 	"     NAME ..... dir($(bootfile))/mboot-NAME.bin\n"
-	" OOB == 1 instructs to write oob data from image as well"
+	" OOB == y instructs to write oob data from image as well"
 );
+
+U_BOOT_CMD(
+	eupgrade,	4,	0,	do_eupgrade,
+	"Firmware upgrade via EDCL",
+	"fwupgrade MTD\n"
+	" - rewrites mtd device MTD using EDCL\n"
+);
+
 

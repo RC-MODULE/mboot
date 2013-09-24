@@ -1288,8 +1288,8 @@ static int mnand_read_id(struct mtd_info *mtd, int cs)
 	INFO("CS%d %s size(%lu) writesize(%u) oobsize(%u) erasesize(%u)",
 	     cs, type->name, type->chipsize, mtd->writesize, mtd->oobsize, mtd->erasesize);
 
-	if(mtd->erasesize != 0x20000 || mtd->writesize != 2048) {
-		ERR("WARNING: unsupported flash. This driver supports writesize 2048 erasesize 128K only");
+	if(( cs == 0 ) && ( mtd->writesize != 2048)) {
+		ERR("WARNING: unsupported flash. This driver supports writesize 2048");
 	}
 
 	mtd->size += (uint64_t)type->chipsize << 20;
@@ -1674,8 +1674,8 @@ int mnand_init(struct mtd_info* mtd)
 
 	for (i = 0; i<2; i++) { 
 		ret = mnand_read_id(mtd, i);
-		if(ret != 0) {
-			ERR("Unable to read id: %d", ret);
+		if ((ret != 0) && (i == 0)) {
+			ERR("Unable to read id: %d for cs %d", ret, i);
 			goto err_dma;
 		}
 	}

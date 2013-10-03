@@ -201,7 +201,8 @@ struct efw_settings {
 	uint32_t erase_size;
 	uint32_t oob_size;
 	uint64_t size; 
-};
+	uint32_t writesize; 
+} __attribute__((packed));
 
 
 
@@ -329,6 +330,7 @@ static int do_eupgrade(struct cmd_ctx *cmdctx, int argc, char * const argv[])
 	es.erase_size = mtd->erasesize;
 	es.oob_size   = mtd->oobsize;
 	es.size       = mtd->size;
+	es.writesize  = mtd->writesize; 
 
 	ret = erase_part(mtd, 0, 1);
 	if (ret)

@@ -471,9 +471,17 @@ static int mnand_poll(void)
 	return 0;
 }
 
+void mnand_update_control(uint32_t writesize, uint32_t oobsize)
+{
+	int val; 
+	val = (1 << 25) | ((writesize + oobsize) << 11) | (1 << 10);
+	val |= g_mnand_calculate_ecc ? (1<<7) : 0;
+	mnand_set(NAND_REG_CONTROL, val | g_chip.cs);    
+	
+}
+
 void mnand_hw_init(void) 
 {
-	int val;
 	// check if we can write CONFIGH
 	if((read_configh() & (1 << 23)) == 0)  {
 		// enabling NAND pads
@@ -502,10 +510,7 @@ void mnand_hw_init(void)
 #endif
 	// setting default values for nand_controller configuration registers to 
 	// perform READ ID operation
-	val = (1 << 25) | ((2048+64) << 11) | (1 << 10);
-	val |= g_mnand_calculate_ecc ? (1<<7) : 0;
-	mnand_set(NAND_REG_CONTROL, val | g_chip.cs);    
-
+	mnand_update_control(2048, 64); 
 	// setting default values for AXI MASTER for read from system memory
 	mnand_set(NAND_REG_DATA_CHANNEL_CONFIG, 0xC0);
 	mnand_set(NAND_REG_ARLEN, 0xF);
@@ -1285,8 +1290,19 @@ static int mnand_read_id(struct mtd_info *mtd, int cs)
 	NBUG(mtd->erasesize, tmp);
 	mtd->erasesize = tmp; 
 
+
+	if ( mtd->writesize == 4096) {
+		/*  4K NAND chips have an undocumented feature:  
+		 *  We can write 2K pages! Since ECC for 4K is 
+		 *  NOT supported, wokaround
+		 */ 
+		mtd->writesize = 2048; 
+		mtd->oobsize = mtd->oobsize / 2 ;
+	}
+
 	INFO("CS%d %s size(%lu) writesize(%u) oobsize(%u) erasesize(%u)",
 	     cs, type->name, type->chipsize, mtd->writesize, mtd->oobsize, mtd->erasesize);
+
 
 	if(( cs == 0 ) && ( mtd->writesize != 2048)) {
 		ERR("WARNING: unsupported flash. This driver supports writesize 2048");
@@ -1294,6 +1310,9 @@ static int mnand_read_id(struct mtd_info *mtd, int cs)
 
 	mtd->size += (uint64_t)type->chipsize << 20;
 	g_chip.chip_size[cs] = (uint64_t)type->chipsize << 20;	
+
+	mnand_update_control(mtd->writesize, mtd->oobsize); 
+
 	return 0;
 
 inconsistent: 

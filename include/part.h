@@ -50,7 +50,7 @@ typedef struct block_dev_desc {
 				       lbaint_t blkcnt,
 				       const void *buffer);
 	void		*priv;		/* driver private struct pointer */
-}block_dev_desc_t;
+} block_dev_desc_t;
 
 /* Interface types: */
 #define IF_TYPE_UNKNOWN		0

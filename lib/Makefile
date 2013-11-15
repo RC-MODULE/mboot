@@ -5,6 +5,7 @@ COBJS-$(CONFIG_BZIP2) += lib/bzlib_decompress.o
 COBJS-$(CONFIG_BZIP2) += lib/bzlib_randtable.o
 COBJS-$(CONFIG_BZIP2) += lib/bzlib_huffman.o
 COBJS-$(CONFIG_USB_TTY) += lib/circbuf.o
+COBJS-y += lib/part_dos.o
 COBJS-y += lib/crc16.o
 COBJS-y += lib/crc32.o
 COBJS-y += lib/ctype.o

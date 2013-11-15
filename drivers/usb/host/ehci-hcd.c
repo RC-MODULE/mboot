@@ -22,6 +22,7 @@
  */
 #include <common.h>
 #include <asm/byteorder.h>
+#include <part.h>
 #include <usb.h>
 #include <asm/io.h>
 #include <malloc.h>

@@ -348,167 +348,16 @@ void usb_show_tree(struct usb_device *dev)
 /******************************************************************************
  * usb boot command intepreter. Derived from diskboot
  */
-#ifdef CONFIG_USB_STORAGE
-int do_usbboot(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
-{
-	char *boot_device = NULL;
-	char *ep;
-	int dev, part = 1, rcode;
-	ulong addr, cnt;
-	disk_partition_t info;
-	image_header_t *hdr;
-	block_dev_desc_t *stor_dev;
-#if defined(CONFIG_FIT)
-	const void *fit_hdr = NULL;
-#endif
-
-	switch (argc) {
-	case 1:
-		addr = CONFIG_SYS_LOAD_ADDR;
-		boot_device = getenv("bootdevice");
-		break;
-	case 2:
-		addr = simple_strtoul(argv[1], NULL, 16);
-		boot_device = getenv("bootdevice");
-		break;
-	case 3:
-		addr = simple_strtoul(argv[1], NULL, 16);
-		boot_device = argv[2];
-		break;
-	default:
-		return cmd_usage(cmdtp);
-	}
-
-	if (!boot_device) {
-		puts("\n** No boot device **\n");
-		return 1;
-	}
-
-	dev = simple_strtoul(boot_device, &ep, 16);
-	stor_dev = usb_stor_get_dev(dev);
-	if (stor_dev == NULL || stor_dev->type == DEV_TYPE_UNKNOWN) {
-		printf("\n** Device %d not available\n", dev);
-		return 1;
-	}
-	if (stor_dev->block_read == NULL) {
-		printf("storage device not initialized. Use usb scan\n");
-		return 1;
-	}
-	if (*ep) {
-		if (*ep != ':') {
-			puts("\n** Invalid boot device, use `dev[:part]' **\n");
-			return 1;
-		}
-		part = simple_strtoul(++ep, NULL, 16);
-	}
-
-	if (get_partition_info(stor_dev, part, &info)) {
-		/* try to boot raw .... */
-		strncpy((char *)&info.type[0], BOOT_PART_TYPE,
-			sizeof(BOOT_PART_TYPE));
-		strncpy((char *)&info.name[0], "Raw", 4);
-		info.start = 0;
-		info.blksz = 0x200;
-		info.size = 2880;
-		printf("error reading partinfo...try to boot raw\n");
-	}
-	if ((strncmp((char *)info.type, BOOT_PART_TYPE,
-	    sizeof(info.type)) != 0) &&
-	    (strncmp((char *)info.type, BOOT_PART_COMP,
-	    sizeof(info.type)) != 0)) {
-		printf("\n** Invalid partition type \"%.32s\""
-			" (expect \"" BOOT_PART_TYPE "\")\n",
-			info.type);
-		return 1;
-	}
-	printf("\nLoading from USB device %d, partition %d: "
-		"Name: %.32s  Type: %.32s\n",
-		dev, part, info.name, info.type);
-
-	debug("First Block: %ld,  # of blocks: %ld, Block Size: %ld\n",
-		info.start, info.size, info.blksz);
-
-	if (stor_dev->block_read(dev, info.start, 1, (ulong *)addr) != 1) {
-		printf("** Read error on %d:%d\n", dev, part);
-		return 1;
-	}
-
-	switch (genimg_get_format((void *)addr)) {
-	case IMAGE_FORMAT_LEGACY:
-		hdr = (image_header_t *)addr;
-
-		if (!image_check_hcrc(hdr)) {
-			puts("\n** Bad Header Checksum **\n");
-			return 1;
-		}
-
-		image_print_contents(hdr);
-
-		cnt = image_get_image_size(hdr);
-		break;
-#if defined(CONFIG_FIT)
-	case IMAGE_FORMAT_FIT:
-		fit_hdr = (const void *)addr;
-		puts("Fit image detected...\n");
-
-		cnt = fit_get_size(fit_hdr);
-		break;
-#endif
-	default:
-		puts("** Unknown image type\n");
-		return 1;
-	}
-
-	cnt += info.blksz - 1;
-	cnt /= info.blksz;
-	cnt -= 1;
-
-	if (stor_dev->block_read(dev, info.start+1, cnt,
-		      (ulong *)(addr+info.blksz)) != cnt) {
-		printf("\n** Read error on %d:%d\n", dev, part);
-		return 1;
-	}
-
-#if defined(CONFIG_FIT)
-	/* This cannot be done earlier, we need complete FIT image in RAM
-	 * first
-	 */
-	if (genimg_get_format((void *)addr) == IMAGE_FORMAT_FIT) {
-		if (!fit_check_format(fit_hdr)) {
-			puts("** Bad FIT image format\n");
-			return 1;
-		}
-		fit_print_contents(fit_hdr);
-	}
-#endif
-
-	/* Loading ok, update default load address */
-	load_addr = addr;
-
-	flush_cache(addr, (cnt+1)*info.blksz);
-
-	/* Check if we should attempt an auto-start */
-	if (((ep = getenv("autostart")) != NULL) && (strcmp(ep, "yes") == 0)) {
-		char *local_args[2];
-		extern int do_bootm(cmd_tbl_t *, int, int, char *[]);
-		local_args[0] = argv[0];
-		local_args[1] = NULL;
-		printf("Automatic boot of image at addr 0x%08lX ...\n", addr);
-		rcode = do_bootm(cmdtp, 0, 1, local_args);
-		return rcode;
-	}
-	return 0;
-}
-#endif /* CONFIG_USB_STORAGE */
 
 
 /******************************************************************************
  * usb command intepreter
  */
-int do_usb(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+int do_usb(struct cmd_ctx *cmdctx, int argc, char * const argv[])
 {
 
 	int i;
+	cmd_tbl_t *cmdtp = cmdctx->cmdtp;
 	struct usb_device *dev = NULL;
 	extern char usb_started;
 #ifdef CONFIG_USB_STORAGE
@@ -699,6 +548,7 @@ int do_usb(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	return cmd_usage(cmdtp);
 }
 
+
 #ifdef CONFIG_USB_STORAGE
 U_BOOT_CMD(
 	usb,	5,	1,	do_usb,
@@ -715,13 +565,6 @@ U_BOOT_CMD(
 	"    to memory address `addr'\n"
 	"usb write addr blk# cnt - write `cnt' blocks starting at block `blk#'\n"
 	"    from memory address `addr'"
-);
-
-
-U_BOOT_CMD(
-	usbboot,	3,	1,	do_usbboot,
-	"boot from USB device",
-	"loadAddr dev:part"
 );
 
 #else

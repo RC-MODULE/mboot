@@ -160,7 +160,7 @@
 //#define CONFIG_MTD_MNAND_SLOW
 #define CONFIG_MNAND_TIMEOUT_MS   5000
 //#define CONFIG_MNAND_DEBUG_HIST
-//#define CONFIG_CMD_MNANDCTL
+#define CONFIG_CMD_MNANDCTL
 
 /*
  * Booting
@@ -227,6 +227,12 @@
 #define CONFIG_SYS_NO_FLASH 1
 /* Number of timeouts before giving up */
 #define CONFIG_NET_RETRY_COUNT    3
+
+#define CONFIG_CMD_USB
+#define CONFIG_USB_STORAGE
+#define CONFIG_USB_EHCI
+#define CONFIG_USB_EHCI_UEMD
+#define CONFIG_DOS_PARTITION
 
 #endif
 

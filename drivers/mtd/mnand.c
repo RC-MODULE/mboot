@@ -200,28 +200,6 @@ int g_mnand_calculate_ecc = 1;
 #define iowrite32(val, x) writel(val, x)
 #define ioread32(x) readl(x)
 
-static inline int is_power_of_2(unsigned long n)
-{
-	return (n != 0 && ((n & (n - 1)) == 0));
-}
-
-// Those two functions are backports from newer kernel
-inline int mnand_erasesize_shift(struct mtd_info *mtd) 
-{
-	if (is_power_of_2(mtd->erasesize))
-		return ffs(mtd->erasesize) - 1;
-	else
-		return 0;
-}
-
-inline int mnand_writesize_shift(struct mtd_info *mtd) 
-{
-	if (is_power_of_2(mtd->writesize))
-		return ffs(mtd->writesize) - 1;
-	else
-		return 0;
-}
-
 enum {
 	MNAND_IDLE = 0,
 	MNAND_WRITE,
@@ -252,36 +230,42 @@ struct mnand_chip {
 	uint32_t ecc_failed;
 	uint64_t chip_size[2]; 
 	uint32_t cs; /* cs */
+	int workaround_4k;
 };
 
 static struct mnand_chip g_chip;
-
-#ifdef CONFIG_MNAND_DEBUG_HIST
-struct write_info {
-    uint32_t address;
-    uint32_t value;
-};
-
-struct write_info g_write_buffer[1024];
-int g_write_pos = 0;
-
-struct page_log {
-	uint32_t address;
-	uint8_t data[2048+64];
-};
-
-struct page_log g_write_page_log[100];
-int g_write_page_pos = 0;
-
-struct page_log g_read_page_log[100];
-int g_read_page_pos = 0;
-#endif /* CONFIG_MNAND_DEBUG_HIST */
 
 #define MNAND_STATUS_ECC_ERROR 0x100
 
 #define MNAND_ECC_BLOCKSIZE 256
 #define MNAND_ECC_BYTESPERBLOCK 3
 #define MNAND_DMA_SIZE 4096
+
+
+
+
+static inline int is_power_of_2(unsigned long n)
+{
+	return (n != 0 && ((n & (n - 1)) == 0));
+}
+
+// Those two functions are backports from newer kernel
+inline int mnand_erasesize_shift(struct mtd_info *mtd) 
+{
+	if (is_power_of_2(mtd->erasesize))
+		return ffs(mtd->erasesize) - 1;
+	else
+		return 0;
+}
+
+inline int mnand_writesize_shift(struct mtd_info *mtd) 
+{
+	if (is_power_of_2(mtd->writesize))
+		return ffs(mtd->writesize) - 1;
+	else
+		return 0;
+}
+
 
 static struct nand_ecclayout g_ecclayout = {
 	.eccbytes = 24,
@@ -290,21 +274,16 @@ static struct nand_ecclayout g_ecclayout = {
 		9, 10, 11, 12, 13, 14, 15, 16,
 		17, 18, 19, 20, 21, 22, 23, 24},
 	.oobfree = {
-		{.offset = 25,
-			.length = 39}},
+		{
+			.offset = 25,
+			.length = 39
+		}
+	},
 	.oobavail = 39
 };
 
 void mnand_set(uint32_t addr, uint32_t val) 
 {
-#ifdef CONFIG_MNAND_DEBUG_HIST
-	struct write_info wi = { addr, val };
-
-	if(g_write_pos == 1024)
-		g_write_pos = 0;
-
-	g_write_buffer[g_write_pos++] = wi;
-#endif
 	
 	TRACE( "nand(0x%08X) <= 0x%08X", (uint32_t)(g_chip.io+addr), val);
 
@@ -362,31 +341,6 @@ static void mnand_get_hardware_ecc(size_t i, unsigned char *ecc)
 	ecc[2] = cdata[0];
 }
 
-void mnand_reset_grabber(void) 
-{
-	//FIXME:
-/*    mnand_set(0x1008,0x8);*/
-/*    mnand_set(0x100C, 1);*/
-/*    mnand_set(0x100C, 0);*/
-
-/*    mnand_set(0x2008, 0xffffffff);*/
-/*    mnand_set(0x200C, 1);*/
-/*    mnand_set(0x200C, 0);*/
-
-/*    mnand_set(0x3008, 0xffffffff);*/
-/*    mnand_set(0x300C, 1);*/
-/*    mnand_set(0x300C, 0);*/
-
-/*    mnand_set(0x400C, 1);*/
-/*    mnand_set(0x400C, 0);*/
-
-/*    mnand_set(0x500C, 1);*/
-/*    mnand_set(0x500C, 0);*/
-
-/*    mnand_set(0x800C, 1);*/
-/*    mnand_set(0x800C, 0);*/
-/*    mnand_set(0x8008, 0xffffffff);*/
-}
 
 static int mnand_poll_read(void) 
 {
@@ -475,8 +429,9 @@ void mnand_update_control(uint32_t writesize, uint32_t oobsize)
 {
 	int val; 
 	val = (1 << 25) | ((writesize + oobsize) << 11) | (1 << 10);
-	val |= g_mnand_calculate_ecc ? (1<<7) : 0;
+	val |= g_mnand_calculate_ecc ? ( 1<<7 ) : 0;
 	mnand_set(NAND_REG_CONTROL, val | g_chip.cs);    
+//	mnand_set(0x04, 0x24204E3);
 	
 }
 
@@ -591,8 +546,6 @@ static int mnand_core_erase(loff_t off)
 	}
 	BUG_ON(!mnand_ready());
 
-	mnand_reset_grabber();
-
 	g_chip.state = MNAND_ERASE;
 
 	mnand_set(0x8, 0x2b);
@@ -622,8 +575,6 @@ static int mnand_core_read_id(size_t bytes)
 		ERR("flash is in error state");
 		return -EINVAL;
 	}
-
-	mnand_reset_grabber();
 
 	BUG_ON(!mnand_ready());  
 
@@ -1081,8 +1032,6 @@ static int mnand_core_read(loff_t off)
 	}
 	BUG_ON(!mnand_ready());
 
-	mnand_reset_grabber();
-
 	if(g_chip.active_page != page) 
 	{
 		g_chip.active_page = -1;
@@ -1092,7 +1041,7 @@ static int mnand_core_read(loff_t off)
 		g_chip.state = MNAND_READ;
 
 		mnand_set(0x08, 0x20);
-		mnand_set(0x0C, (off >> mnand_writesize_shift(g_chip.mtd)) << 12);
+		mnand_set(0x0C, (off >> mnand_writesize_shift(g_chip.mtd)) << ( 12 - g_chip.workaround_4k ));
 
 		ret = mnand_poll_read();
 		if(ret != 0)
@@ -1100,16 +1049,6 @@ static int mnand_core_read(loff_t off)
 
 		BUG_ON(!mnand_ready());
 		g_chip.state = MNAND_IDLE;
-
-#ifdef CONFIG_MNAND_DEBUG_HIST
-		g_read_page_log[g_read_page_pos].address = page;
-		memcpy(g_read_page_log[g_read_page_pos].data, g_chip.dma_area, 2048+64);
-
-		++g_read_page_pos;
-
-		if(g_read_page_pos == sizeof(g_read_page_log) / sizeof(g_read_page_log[0]))
-			g_read_page_pos = 0;
-#endif
 
 		cache_flush();
 
@@ -1187,8 +1126,6 @@ static int mnand_core_write(loff_t off)
 
 	BUG_ON(!mnand_ready());
 
-	mnand_reset_grabber();
-
 	g_chip.active_page = -1;
 
 	cache_flush();
@@ -1197,19 +1134,9 @@ static int mnand_core_write(loff_t off)
 
 	g_chip.state = MNAND_WRITE;
 
-#ifdef CONFIG_MNAND_DEBUG_HIST
-	g_write_page_log[g_write_page_pos].address = off;
-	memcpy(g_write_page_log[g_write_page_pos].data, g_chip.dma_area, 2048+64);
-
-	++g_write_page_pos;
-
-	if((g_write_page_pos) == sizeof(g_write_page_log)/sizeof(g_write_page_log[0]))
-		g_write_page_pos = 0;
-#endif
-
 	mnand_set(0x08, 0x27);
-	mnand_set(0x0C, (off >> mnand_writesize_shift(g_chip.mtd)) << 12);
-	BUG_ON(mnand_get(0x0C) != (off >> mnand_writesize_shift(g_chip.mtd)) << 12);
+	mnand_set(0x0C, (off >> mnand_writesize_shift(g_chip.mtd)) << ( 12 - g_chip.workaround_4k));
+	BUG_ON(mnand_get(0x0C) != (off >> mnand_writesize_shift(g_chip.mtd)) << (12 - g_chip.workaround_4k));
 
 	ret = mnand_poll();
 	if(ret<0)
@@ -1289,29 +1216,30 @@ static int mnand_read_id(struct mtd_info *mtd, int cs)
 	tmp = (64 * 1024) << (extid & 0x03);
 	NBUG(mtd->erasesize, tmp);
 	mtd->erasesize = tmp; 
-
+	g_chip.workaround_4k = 0;
 
 	if ( mtd->writesize == 4096) {
 		/*  4K NAND chips have an undocumented feature:  
 		 *  We can write 2K pages! Since ECC for 4K is 
 		 *  NOT supported, wokaround
 		 */ 
-		mtd->writesize = 2048; 
-		mtd->oobsize = mtd->oobsize / 2 ;
+		INFO("This NAND has 4K pages which is NOT supported");
+		INFO("Working this around, but half of the NAND will be unavailable");
+		mtd->writesize = 2048;
+		mtd->erasesize = mtd->erasesize / 2; 
+		mtd->oobsize = 64 ;
+		mtd->size += (uint64_t)(type->chipsize << 20) / 2;
+		g_chip.chip_size[cs] = (uint64_t) (type->chipsize << 20) / 2;	
+	} else {
+		mtd->size += (uint64_t)type->chipsize << 20;
+		g_chip.chip_size[cs] = (uint64_t)type->chipsize << 20;	
 	}
-
 	INFO("CS%d %s size(%lu) writesize(%u) oobsize(%u) erasesize(%u)",
 	     cs, type->name, type->chipsize, mtd->writesize, mtd->oobsize, mtd->erasesize);
 
+	
 
-	if(( cs == 0 ) && ( mtd->writesize != 2048)) {
-		ERR("WARNING: unsupported flash. This driver supports writesize 2048");
-	}
-
-	mtd->size += (uint64_t)type->chipsize << 20;
-	g_chip.chip_size[cs] = (uint64_t)type->chipsize << 20;	
-
-	mnand_update_control(mtd->writesize, mtd->oobsize); 
+	//mnand_update_control(mtd->writesize, mtd->oobsize); 
 
 	return 0;
 
@@ -1721,7 +1649,6 @@ int mnand_reset(struct mtd_info *mtd)
 		return -1;
 	}
 	mnand_hw_init();
-	mnand_reset_grabber();
 	mnand_core_reset();
 	return 0;
 }

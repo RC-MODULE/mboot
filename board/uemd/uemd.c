@@ -62,6 +62,8 @@ static struct env_var g_env_def[] = {
 	ENV_VAR("hostname",   CONFIG_HOSTNAME),
 #endif
 	ENV_VAR("bootfile",   CONFIG_BOOTFILE),
+	ENV_VAR("usb_thr_in",    "0x20"),
+	ENV_VAR("usb_thr_out",   "0x7e"),
 	ENV_VAR("loadaddr",   STR(CONFIG_LOADADDR)),
 	ENV_VAR("kernel_size",  "0x800000"),
 	ENV_VAR("user_size",    "0x40000000"),
@@ -203,10 +205,25 @@ static int do_pscan (struct cmd_ctx *ctx, int argc, char * const argv[])
 
 } 
 
+/* Properly configure FJ's HC */
+static void uemd_usb_magic(struct main_state *ms)
+{
+	unsigned long thr_in;
+	unsigned long thr_out;
+	uint32_t *reg = (uint32_t *) (0x10040094);
+	getenv_ul("usb_thr_out", &thr_out, 0x7e);
+	getenv_ul("usb_thr_in",  &thr_in,  0x20);
+	if (thr_out > 0x7e)
+		thr_out =0x7e;
+	if (thr_in > 0x7e)
+		thr_in =0x7e;
+	printf("USB: thresholds in 0x%x out 0x%x\n", 
+	       (uint32_t) thr_in, (uint32_t) thr_out);	
+	*reg = (uint32_t) (thr_out << 16 | thr_in);
+}
 
 void uemd_init(struct uemd_otp *otp)
 {
-	//DECLARE_GLOBAL_DATA_PTR;
 	int ret;
 	int netn;
 
@@ -278,7 +295,7 @@ void uemd_init(struct uemd_otp *otp)
 	/* MAIN LOOP */
 	struct main_state ms;
 	main_state_init(&ms);
-
+	uemd_usb_magic(&ms);
 	check_edcl_voodoo(&ms);
 	
 	run_command(&ms, "partscan", 0, NULL);

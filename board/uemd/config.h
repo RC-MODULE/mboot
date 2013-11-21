@@ -79,14 +79,14 @@
 
 /* Environment data */
 #define CONFIG_SYS_ENV_SIZE       0x400
-#define CONFIG_SYS_ENV_ADDR       (PHYS_IM0 + PHYS_IM0_SIZE - CONFIG_SYS_ENV_SIZE)
+#define CONFIG_SYS_ENV_ADDR       (PHYS_IM1 + PHYS_IM1_SIZE - CONFIG_SYS_ENV_SIZE)
 
 /* Malloc data */
 #define CONFIG_SYS_MALLOC_SIZE    0x8000
 #define CONFIG_SYS_MALLOC_ADDR    (CONFIG_SYS_ENV_ADDR - CONFIG_SYS_MALLOC_SIZE)
 
 /* Stack pointer address. Make sure it is 8-aligned. */
-#define CONFIG_SYS_SP_ADDR        ((CONFIG_SYS_MALLOC_ADDR - 4) & (~7))
+#define CONFIG_SYS_SP_ADDR        ((PHYS_IM0 + PHYS_IM0_SIZE - 4) & (~7))
 
 #define CONFIG_SYS_NO_ICACHE
 #define CONFIG_SYS_NO_DCACHE

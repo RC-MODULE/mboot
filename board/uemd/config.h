@@ -78,7 +78,7 @@
 #define CONFIG_SYS_MEMTEST_END    (PHYS_EM0 + PHYS_EM0_SIZE)
 
 /* Environment data */
-#define CONFIG_SYS_ENV_SIZE       0x400
+#define CONFIG_SYS_ENV_SIZE       0x8000
 #define CONFIG_SYS_ENV_ADDR       (PHYS_IM1 + PHYS_IM1_SIZE - CONFIG_SYS_ENV_SIZE)
 
 /* Malloc data */

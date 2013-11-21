@@ -211,13 +211,14 @@ static void uemd_usb_magic(struct main_state *ms)
 	unsigned long thr_in;
 	unsigned long thr_out;
 	uint32_t *reg = (uint32_t *) (0x10040094);
+
 	getenv_ul("usb_thr_out", &thr_out, 0x7e);
 	getenv_ul("usb_thr_in",  &thr_in,  0x20);
 	if (thr_out > 0x7e)
 		thr_out =0x7e;
 	if (thr_in > 0x7e)
 		thr_in =0x7e;
-	printf("USB: thresholds in 0x%x out 0x%x\n", 
+	printf("USB thresholds: in 0x%x out 0x%x\n", 
 	       (uint32_t) thr_in, (uint32_t) thr_out);	
 	*reg = (uint32_t) (thr_out << 16 | thr_in);
 }
@@ -368,7 +369,7 @@ void uemd_init(struct uemd_otp *otp)
 	uemd_check_zero(ret, goto err, "image move-unpack failed");
 	printf("Linux tags start 0x%p end 0x%p\n", tag_base, tag);
 	printf("Linux entry 0x%08lX\n", ep.addr);
-
+	uemd_usb_magic(&ms);
 	ep.linux_ep(0, machid, tag_base);
 
 err:

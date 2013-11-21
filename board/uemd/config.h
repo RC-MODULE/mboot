@@ -75,10 +75,10 @@
 #define PHYS_EM1_SIZE             0x08000000
 
 #define CONFIG_SYS_MEMTEST_START  (PHYS_EM0)
-#define CONFIG_SYS_MEMTEST_END    (PHYS_EM0 + PHYS_EM0_SIZE)
+#define CONFIG_SYS_MEMTEST_END    (PHYS_EM1 + PHYS_EM1_SIZE)
 
 /* Environment data */
-#define CONFIG_SYS_ENV_SIZE       0x8000
+#define CONFIG_SYS_ENV_SIZE       0x400
 #define CONFIG_SYS_ENV_ADDR       (PHYS_IM1 + PHYS_IM1_SIZE - CONFIG_SYS_ENV_SIZE)
 
 /* Malloc data */
@@ -86,7 +86,7 @@
 #define CONFIG_SYS_MALLOC_ADDR    (CONFIG_SYS_ENV_ADDR - CONFIG_SYS_MALLOC_SIZE)
 
 /* Stack pointer address. Make sure it is 8-aligned. */
-#define CONFIG_SYS_SP_ADDR        ((PHYS_IM0 + PHYS_IM0_SIZE - 4) & (~7))
+#define CONFIG_SYS_SP_ADDR        ((CONFIG_SYS_MALLOC_ADDR - 4) & (~7))
 
 #define CONFIG_SYS_NO_ICACHE
 #define CONFIG_SYS_NO_DCACHE
@@ -228,11 +228,13 @@
 /* Number of timeouts before giving up */
 #define CONFIG_NET_RETRY_COUNT    3
 
+
 #define CONFIG_CMD_USB
 #define CONFIG_USB_STORAGE
 #define CONFIG_USB_EHCI
 #define CONFIG_USB_EHCI_UEMD
 #define CONFIG_DOS_PARTITION
+
 
 #endif
 

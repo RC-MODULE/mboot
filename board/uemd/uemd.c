@@ -271,7 +271,9 @@ void uemd_init(struct uemd_otp *otp)
 	ret = mtd_add(&mtd_mnand);
 	uemd_check_zero(ret, goto err, "MTD add failed");
 
-	size_t bootsz = min_t(size_t, 256*1024*1024, mtd_mnand.erasesize);
+	size_t bootsz = 256*1024; 
+	if (mtd_mnand.erasesize > bootsz)
+		bootsz = mtd_mnand.erasesize;
 	struct mtd_part basic_parts[] = {
 		MTDPART_INITIALIZER("boot",   0,                  bootsz),
 		MTDPART_INITIALIZER(MTDENV,   MTDPART_OFS_NXTBLK, mtd_mnand.erasesize),

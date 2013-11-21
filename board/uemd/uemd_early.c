@@ -71,7 +71,7 @@ static void early_nand_reread_and_restart(void)
 	/* Read the flash up to the start of bss section. */
 	early_nand_read(&nand, 0,
 		(void *)PHYS_IM0, ((g_bss_start - PHYS_IM0)/4) + 1);
-
+	early_memset((void*)PHYS_IM1, 0x0, PHYS_IM1_SIZE);
 	/* Restart the bootloader softly */
 	asm_start();
 }

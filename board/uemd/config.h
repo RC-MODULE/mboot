@@ -83,7 +83,7 @@
 
 /* Malloc data */
 #define CONFIG_SYS_MALLOC_SIZE    0x8000
-#define CONFIG_SYS_MALLOC_ADDR    (CONFIG_SYS_ENV_ADDR - CONFIG_SYS_MALLOC_SIZE)
+#define CONFIG_SYS_MALLOC_ADDR    (PHYS_IM0 + PHYS_IM0_SIZE - CONFIG_SYS_MALLOC_SIZE)
 
 /* Stack pointer address. Make sure it is 8-aligned. */
 #define CONFIG_SYS_SP_ADDR        ((CONFIG_SYS_MALLOC_ADDR - 4) & (~7))
@@ -137,7 +137,7 @@
 #define CONFIG_GATEWAYIP          "192.168.0.1"
 #define CONFIG_SERVERIP           "192.168.0.1"
 #define CONFIG_IPADDR             "192.168.0.7"
-#define CONFIG_ETHADDR            "00:02:F7:00:27:0F"
+#define CONFIG_ETHADDR            "02:00:F7:00:27:0F"
 #define CONFIG_GRETH_SET_HWADDR
 /* Enables new U-Boot networking stack */
 #define CONFIG_NET_MULTI          1

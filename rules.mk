@@ -45,7 +45,7 @@ rules_clean:
 rules.mk: $(BOARD_ELF).config $(shell find arch board common drivers net lib -name Makefile)
 
 $(BOARD_ELF).config: $(BOARD_CONFIG)
-	$(CPP) -Iinclude -DDO_DEPS_ONLY -dM $(BOARD_CONFIG) | \
+	$(SILENT_CONFIG) $(CPP) -Iinclude -DDO_DEPS_ONLY -dM $(BOARD_CONFIG) | \
 	    sed -n -f tools/scripts/define2mk.sed > $@
 
 include $(BOARD_ELF).config
@@ -57,6 +57,7 @@ include common/Makefile
 include drivers/Makefile
 include net/Makefile
 include lib/Makefile
+include colorizer.mk
 
 AS = $(CROSS_COMPILE)as
 CC = $(CROSS_COMPILE)gcc
@@ -68,11 +69,13 @@ OBJDUMP = $(CROSS_COMPILE)objdump
 
 CTAGS = ctags
 
+CUR_DATE="\"$(shell LANG=C date)\""
+
 CPPFLAGS = \
 	$(BOARD_CPPFLAGS) \
 	-DTEXT_BASE=$(BOARD_TEXT_BASE) \
 	-DMBOOT_VERSION="\"mboot$(shell ./tools/setlocalversion)\"" \
-	-DMBOOT_DATE="\"$(shell LANG=C date)\"" \
+	-DMBOOT_DATE=$(CUR_DATE) \
 	-D__KERNEL__ \
 	-nostdinc \
 	-include $(BOARD_CONFIG) \
@@ -100,13 +103,21 @@ DEPS = $(COBJS-y:.o=.d)
 
 rules.mk: $(DEPS)
 
+MAKEFLAGS+=-r
+
+%.o: %.c
+	$(SILENT_CC) $(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+
+%.o: %.S
+	$(SILENT_AS) $(CC) $(ASFLAGS) $(CPPFLAGS) -c $< -o $@
+
 %.d: %.S
-	$(CC) -M $(CFLAGS) $(CPPFLAGS) $< \
+	$(SILENT_DEP) $(CC) -M $(CFLAGS) $(CPPFLAGS) $< \
 		| sed 's@\(.*\)\.o[ :]*@$(@:.d=.o) $@ : @g' > $@; \
         [ -s $@ ] || rm -f $@
 
 %.d: %.c
-	$(CC) -M $(CFLAGS) $(CPPFLAGS) $< \
+	$(SILENT_DEP) $(CC) -M $(CFLAGS) $(CPPFLAGS) $< \
 		| sed 's@\(.*\)\.o[ :]*@$(@:.d=.o) $@ : @g' > $@; \
         [ -s $@ ] || rm -f $@
 
@@ -119,9 +130,9 @@ list: $(DEPS)
 -include $(DEPS)
 
 $(BOARD_ELF): $(COBJS-y)
-	$(LD) -T $(BOARD_LDSCRIPT) -Ttext=$(BOARD_TEXT_BASE) \
+	$(SILENT_LD) $(LD) -T $(BOARD_LDSCRIPT) -Ttext=$(BOARD_TEXT_BASE) \
 		--start-group $^ --end-group $(LDFLAGS) -o $@
 
 $(BOARD_BIN): $(BOARD_ELF)
-	$(OBJCOPY) -v -O binary $< $@
+	$(SILENT_OBJCOPY)$(OBJCOPY) -v -O binary $< $@ >/dev/null
 

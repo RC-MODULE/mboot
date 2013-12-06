@@ -236,7 +236,7 @@ void uemd_init(struct uemd_otp *otp)
 	if(ret < 0)
 		goto err_noconsole;
 
-	printf("MBOOT (UEMD mode): Version %s (Built %s)\n",
+	printf("\n\n\nMBOOT (К1879 and friends): Version %s (Built %s)\n",
 		MBOOT_VERSION, MBOOT_DATE);
 	printf("OTP info: boot_source %u jtag_stop %u words_len %u\n",
 		otp->source, otp->jtag_stop, otp->words_length);

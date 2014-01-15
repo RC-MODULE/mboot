@@ -447,11 +447,14 @@ auto_neg_done:
 	return 0;
 }
 
+
+/*
 static void greth_halt(struct eth_device *dev)
 {
 }
 
-#if 0
+*/
+
 static void greth_halt(struct eth_device *dev)
 {
 	greth_priv *greth;
@@ -485,7 +488,6 @@ static void greth_halt(struct eth_device *dev)
 		}
 	}
 }
-#endif
 
 static int greth_send(struct eth_device *dev, volatile void *eth_data, int data_length)
 {

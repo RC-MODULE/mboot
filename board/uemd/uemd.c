@@ -373,6 +373,7 @@ void uemd_init(struct uemd_otp *otp)
 	printf("Linux tags start 0x%p end 0x%p\n", tag_base, tag);
 	printf("Linux entry 0x%08lX\n", ep.addr);
 	uemd_usb_magic(&ms);
+	eth_halt();
 	ep.linux_ep(0, machid, tag_base);
 
 err:

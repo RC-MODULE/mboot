@@ -39,6 +39,11 @@ console=ttyS0,38400 debug root=/dev/nfs ip=192.168.0.227:192.168.0.1:192.168.0.1
 #include <compiler.h>
 #include <errno.h>
 #include <main.h>
+#include <spi.h>
+#include <asm/io.h>
+#include <asm/hardware.h>
+
+
 
 #include "uemd.h"
 
@@ -70,6 +75,39 @@ static struct env_var g_env_def[] = {
 	ENV_VAR("parts",    "kernel,user"),
 	ENV_NULL
 };
+
+
+/* Stuff for spi  */
+
+struct pl022_spi_slave {
+	struct spi_slave slave;
+	void *regs;
+	unsigned int freq;
+};
+
+int spi_cs_is_valid(unsigned int bus, unsigned int cs)
+{
+	/* Only internal CS supported. GPIO as CS? Hack for yourself! */
+	if (bus!=0 && cs != 0)
+		return 0;
+	return 1;
+}
+
+void  spi_cs_activate(struct spi_slave *slave)
+{
+	struct pl022_spi_slave *ps = (struct pl022_spi_slave *) slave;
+	writel(0, ps->regs + 0x100);    
+	writel(0, ps->regs + 0x10c);
+	writel(1, ps->regs + 0x100);    
+}
+
+void spi_cs_deactivate(struct spi_slave *slave)
+{
+	struct pl022_spi_slave *ps = (struct pl022_spi_slave *) slave;
+	writel(0, ps->regs + 0x100);    
+	writel(1, ps->regs + 0x10c);
+	writel(1, ps->regs + 0x100);    
+}
 
 
 void board_reset(void)
@@ -236,11 +274,10 @@ void uemd_init(struct uemd_otp *otp)
 	if(ret < 0)
 		goto err_noconsole;
 
-	printf("\n\n\nMBOOT (К1879 and friends): Version %s (Built %s)\n",
+	printf("\n\n\nMBOOT (K1879 and friends): Version %s (Built %s)\n",
 		MBOOT_VERSION, MBOOT_DATE);
 	printf("OTP info: boot_source %u jtag_stop %u words_len %u\n",
 		otp->source, otp->jtag_stop, otp->words_length);
-	
 	/* SDRAM */
 	struct memregion sdram;
 	ret = uemd_em_init_check(&sdram);

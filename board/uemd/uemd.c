@@ -42,6 +42,9 @@ console=ttyS0,38400 debug root=/dev/nfs ip=192.168.0.227:192.168.0.1:192.168.0.1
 #include <spi.h>
 #include <asm/io.h>
 #include <asm/hardware.h>
+#include <fdt.h>
+#include <libfdt.h>
+#include <fdt_support.h>
 
 
 
@@ -73,6 +76,7 @@ static struct env_var g_env_def[] = {
 	ENV_VAR("kernel_size",  "0x800000"),
 	ENV_VAR("user_size",    "0x40000000"),
 	ENV_VAR("parts",    "kernel,user"),
+	ENV_VAR("bootfdt",    "1"),
 	ENV_NULL
 };
 
@@ -378,36 +382,68 @@ void uemd_init(struct uemd_otp *otp)
 	}
 
 	ulong machid;
+	ulong bootfdt;
 	getenv_ul("machid", &machid, CONFIG_UEMD_MACH_TYPE);
+	getenv_ul("bootfdt", &bootfdt, CONFIG_UEMD_MACH_TYPE);
+
 	printf("Linux preparing to boot the kernel: machid 0x%lx\n", machid);
 
-	struct tag *tag;
-	struct tag *tag_base = (struct tag *)CONFIG_SYS_PARAM_ADDR;
-	const char *bootargs = getenv_def("bootargs", CONFIG_BOOTARGS);
-	char *cmdline;
-	linux_tag_start(&tag, tag_base);
-	linux_tag_memory(&tag, &sdram);
-	linux_tag_cmdline_start(&tag, &cmdline);
-	linux_tag_cmdline_add(&cmdline, "%s", bootargs);
-	linux_tag_cmdline_add_space(&cmdline);
-	int first = 1;
-	for_all_mtdparts_of(part, MTDALL) {
-		if(first) {
-			linux_tag_cmdline_add(&cmdline, "mtdparts=%s:0x%llX@0x%llX(%s)",
-					      MTDALL,part->mtd.size,part->offset,part->mtd.name);
-			first = 0;
-		}
-		else
-			linux_tag_cmdline_add(&cmdline, ",0x%llX@0x%llX(%s)",
-				part->mtd.size,part->offset,part->mtd.name);
-	}
-	linux_tag_cmdline_end(&tag, &cmdline);
-	linux_tag_end(&tag);
+	void *tag_base = (void *)CONFIG_SYS_PARAM_ADDR;
 
+	if (!bootfdt) {
+		printf("Using legacy ATAGS boot method!\n");
+		struct tag *tag;
+		const char *bootargs = getenv_def("bootargs", CONFIG_BOOTARGS);
+		char *cmdline;
+		linux_tag_start(&tag, tag_base);
+		linux_tag_memory(&tag, &sdram);
+		linux_tag_cmdline_start(&tag, &cmdline);
+		linux_tag_cmdline_add(&cmdline, "%s", bootargs);
+		linux_tag_cmdline_add_space(&cmdline);
+		int first = 1;
+		for_all_mtdparts_of(part, MTDALL) {
+			if(first) {
+				linux_tag_cmdline_add(&cmdline, "mtdparts=%s:0x%llX@0x%llX(%s)",
+						      MTDALL,part->mtd.size,part->offset,part->mtd.name);
+				first = 0;
+			}
+			else
+				linux_tag_cmdline_add(&cmdline, ",0x%llX@0x%llX(%s)",
+						      part->mtd.size,part->offset,part->mtd.name);
+		}
+		linux_tag_cmdline_end(&tag, &cmdline);
+		linux_tag_end(&tag);
+	} else
+	{
+		printf("Using Flatterned Device Tree boot method\n");		
+		
+		struct mtd_info *mtd = mtd_by_name("dtb");
+		int ret;
+		
+		if(mtd == NULL) {
+			uemd_error("DTB partition not found!");
+			goto err_noconsole;
+		}
+		
+		ret = mtd_read_pages(mtd, 0, mtd->size, (u8*) tag_base, mtd->size);
+		if(ret < 0) {
+			uemd_error("Failed to read env from MTD: name %s ret %d",
+				   mtd->name, ret);
+			goto err_noconsole;
+		}
+		if ( 0 != fdt_check_header(tag_base)) {
+			uemd_error("Looks like the fdt in 'dtb' isn't valid. Sorry\n");
+			goto err_noconsole;
+		}
+
+		fdt_chosen(tag_base, 1);
+
+	}
+	
+	
 	union image_entry_point ep;
 	ret = image_move_unpack(&ms.os_image, &ep);
 	uemd_check_zero(ret, goto err, "image move-unpack failed");
-	printf("Linux tags start 0x%p end 0x%p\n", tag_base, tag);
 	printf("Linux entry 0x%08lX\n", ep.addr);
 	uemd_usb_magic(&ms);
 	eth_halt();

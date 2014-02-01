@@ -390,6 +390,25 @@ void uemd_init(struct uemd_otp *otp)
 
 	void *tag_base = (void *)CONFIG_SYS_PARAM_ADDR;
 
+	int first = 1;
+
+	/* That's one terrible hack here. Don't ask why, chew it up.  */
+	for_all_mtdparts_of(part, MTDALL) {
+		char cmdline[128];
+		sprintf(cmdline, "setenv bootargs ${bootargs}");
+		int offset = strlen(cmdline);
+
+		if(first) {
+			sprintf(&cmdline[offset], " mtdparts=%s:0x%llX@0x%llX(%s)",
+				MTDALL,part->mtd.size,part->offset,part->mtd.name);
+			first = 0;
+		} else {
+			sprintf(&cmdline[offset], ",0x%llX@0x%llX(%s)",
+				part->mtd.size,part->offset,part->mtd.name);
+		}
+		run_command(&ms, cmdline, 0, NULL);		
+	}
+
 	if (!bootfdt) {
 		printf("Using legacy ATAGS boot method!\n");
 		struct tag *tag;
@@ -400,17 +419,6 @@ void uemd_init(struct uemd_otp *otp)
 		linux_tag_cmdline_start(&tag, &cmdline);
 		linux_tag_cmdline_add(&cmdline, "%s", bootargs);
 		linux_tag_cmdline_add_space(&cmdline);
-		int first = 1;
-		for_all_mtdparts_of(part, MTDALL) {
-			if(first) {
-				linux_tag_cmdline_add(&cmdline, "mtdparts=%s:0x%llX@0x%llX(%s)",
-						      MTDALL,part->mtd.size,part->offset,part->mtd.name);
-				first = 0;
-			}
-			else
-				linux_tag_cmdline_add(&cmdline, ",0x%llX@0x%llX(%s)",
-						      part->mtd.size,part->offset,part->mtd.name);
-		}
 		linux_tag_cmdline_end(&tag, &cmdline);
 		linux_tag_end(&tag);
 	} else
@@ -435,7 +443,8 @@ void uemd_init(struct uemd_otp *otp)
 			uemd_error("Looks like the fdt in 'dtb' isn't valid. Sorry\n");
 			goto err_noconsole;
 		}
-
+		
+		set_working_fdt_addr(tag_base);
 		fdt_chosen(tag_base, 1);
 
 	}

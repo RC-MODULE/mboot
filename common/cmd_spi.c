@@ -116,15 +116,14 @@ int do_spi (struct cmd_ctx *cmdctx, int argc, char * const argv[])
 		return 1;
 	}
 
-	printf("setup\n");
 	slave = spi_setup_slave(bus, cs, 1000000, mode);
 	if (!slave) {
 		printf("Invalid device %d:%d\n", bus, cs);
 		return 1;
 	}
-	printf("claim\n");
+
 	spi_claim_bus(slave);
-	printf("xfer\n");
+
 	if(spi_xfer(slave, bitlen, dout, din,
 				SPI_XFER_BEGIN | SPI_XFER_END) != 0) {
 		printf("Error during SPI transaction\n");
@@ -135,6 +134,7 @@ int do_spi (struct cmd_ctx *cmdctx, int argc, char * const argv[])
 		}
 		printf("\n");
 	}
+
 	spi_release_bus(slave);
 	spi_free_slave(slave);
 

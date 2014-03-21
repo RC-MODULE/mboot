@@ -63,3 +63,12 @@ $(BOARD_SIGN): $(BOARD_IMG)
 snapshot: $(BOARD_ELF) $(BOARD_IMG)
 	./snapshot $(BOARD_ELF)
 
+BDATE=$(shell date +%d%m%Y)
+
+package_boot_fw:
+	cp -Rfv fw.skel fw-bootloader-only-$(BDATE)
+	cp mboot-uemd.bin ./fw-bootloader-only-$(BDATE)/
+	cp mboot-signed.bin ./fw-bootloader-only-$(BDATE)/
+	tar cvpzf ./fw-bootloader-only-$(BDATE).tgz ./fw-bootloader-only-$(BDATE)/
+
+

@@ -119,13 +119,15 @@ void spi_init(void)
 static int pl022_is_supported(struct pl022_spi_slave *ps)
 {
 	struct pl022 *pl022 = (struct pl022 *)ps->regs;
+	
+	/* Hack: Hardware guys screwed up periph ids. */
+	return 1;
 
 	/* PL022 version is 0x00041022 */
 	if ((readl(&pl022->ssp_pid0) == 0x22) &&
 			(readl(&pl022->ssp_pid1) == 0x10) &&
 			((readl(&pl022->ssp_pid2) & 0xf) == 0x04) &&
 	    (readl(&pl022->ssp_pid3) == 0x00)) {
-		printf("Detected a supported version of pl022, good\n");
 		return 1;
 	}
 

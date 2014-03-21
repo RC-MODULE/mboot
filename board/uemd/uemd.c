@@ -302,6 +302,10 @@ void uemd_init(struct uemd_otp *otp)
 	printf("\t0x%08X  malloc\n", CONFIG_SYS_MALLOC_ADDR);
 	printf("\t0x%08X  env\n", CONFIG_SYS_ENV_ADDR);
 	
+	/* SPI INIT */
+
+	*((uint32_t*)0xf802e100) = 1;
+
 	/* MTD/MNAND */
 	struct mtd_info mtd_mnand = MTD_INITIALISER(MTDALL);
 	mtd_master = &mtd_mnand;
@@ -466,6 +470,13 @@ err_noconsole:
 	board_hang();
 	return;
 }
+
+
+U_BOOT_CMD(
+	jtaglock, 1, 0,	do_pscan,
+	"Disable JTAG/EDCL debugging interfaces",
+	""
+);
 
 U_BOOT_CMD(
 	partscan, 1, 0,	do_pscan,

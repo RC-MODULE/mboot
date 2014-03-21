@@ -91,7 +91,7 @@
 #define CONFIG_SYS_NO_ICACHE
 #define CONFIG_SYS_NO_DCACHE
 
-#define CONFIG_SYS_SPI_BASE   (0x20023000)
+#define CONFIG_SYS_SPI_BASE   (0x2002e000)
 #define CONFIG_SYS_SPI_CLK    54000000
 
 /*
@@ -247,6 +247,8 @@
 #define CONFIG_PL022_SPI
 #define CONFIG_CMD_SPI
 #define CONFIG_CMD_SF
+//#define CONFIG_CMD_UBIFS
+
 
 #endif
 

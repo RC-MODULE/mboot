@@ -78,7 +78,7 @@
 #define CONFIG_SYS_MEMTEST_END    (PHYS_EM1 + PHYS_EM1_SIZE)
 
 /* Environment data */
-#define CONFIG_SYS_ENV_SIZE       0x400
+#define CONFIG_SYS_ENV_SIZE       0x1000
 #define CONFIG_SYS_ENV_ADDR       (PHYS_IM1 + PHYS_IM1_SIZE - CONFIG_SYS_ENV_SIZE)
 
 /* Malloc data */
@@ -209,7 +209,7 @@
 /* Long help messages */
 #define CONFIG_SYS_LONGHELP
 /* Console I/O Buffer Size */
-#define CONFIG_SYS_CBSIZE    256
+#define CONFIG_SYS_CBSIZE    512
 /* Monitor Command Prompt */
 #define CONFIG_SYS_PROMPT    "MBOOT # "
 /* Print Buffer Size */

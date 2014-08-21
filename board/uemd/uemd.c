@@ -77,6 +77,7 @@ static struct env_var g_env_def[] = {
 	ENV_VAR("user_size",    "0x40000000"),
 	ENV_VAR("parts",    "kernel,user"),
 	ENV_VAR("bootfdt",    "1"),
+	ENV_VAR("lockedcl",   "0"),
 	ENV_NULL
 };
 

@@ -346,6 +346,17 @@ void uemd_init(struct uemd_otp *otp)
 	main_state_init(&ms);
 	uemd_usb_magic(&ms);
 	check_edcl_voodoo(&ms);
+
+	/* Lock EDCL */ 
+	ulong lockedcl;
+	getenv_ul("lockedcl", &lockedcl, 0);
+	if (lockedcl) { 
+		uint32_t r =  readl(0x20033084);   
+		writel(r | 0x4, 0x20033084);
+		printf("edcl: Ethernet debug disabled by environment\n");
+	} else {
+		printf("edcl: Ethernet debug enabled, your system is VULNERABLE\n");
+	}		
 	
 	run_command(&ms, "partscan", 0, NULL);
  
@@ -387,6 +398,7 @@ void uemd_init(struct uemd_otp *otp)
 
 	ulong machid;
 	ulong bootfdt;
+
 	getenv_ul("machid", &machid, CONFIG_UEMD_MACH_TYPE);
 	getenv_ul("bootfdt", &bootfdt, CONFIG_UEMD_MACH_TYPE);
 

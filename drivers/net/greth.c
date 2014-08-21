@@ -60,7 +60,7 @@
 #define GRETH_REGANDIN(addr,data) GRETH_REGSAVE(addr,GRETH_REGLOAD(addr)&data)
 
 #define GRETH_RXBD_CNT 4
-#define GRETH_TXBD_CNT 1
+#define GRETH_TXBD_CNT 4
 
 #define GRETH_RXBUF_SIZE 1540
 #define GRETH_BUF_ALIGN 4

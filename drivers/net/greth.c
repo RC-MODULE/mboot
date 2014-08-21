@@ -448,13 +448,12 @@ auto_neg_done:
 }
 
 
-/*
+
 static void greth_halt(struct eth_device *dev)
 {
 }
 
-*/
-
+/*
 static void greth_halt(struct eth_device *dev)
 {
 	greth_priv *greth;
@@ -488,6 +487,7 @@ static void greth_halt(struct eth_device *dev)
 		}
 	}
 }
+*/
 
 static int greth_send(struct eth_device *dev, volatile void *eth_data, int data_length)
 {

@@ -54,6 +54,7 @@ VPATH = $(shell find common drivers net lib -type d)
 
 COBJS-y += $(BOARD_OBJS)
 include common/Makefile
+#include fs/Makefile
 include drivers/Makefile
 include net/Makefile
 include lib/Makefile

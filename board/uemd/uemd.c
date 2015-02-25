@@ -361,13 +361,18 @@ void uemd_init(struct uemd_otp *otp)
 	
 	run_command(&ms, "partscan", 0, NULL);
  
-	ulong bootdelay_sec;
+	long bootdelay_sec;
 	const char *bootcmd;
 
 	bootcmd = getenv("bootcmd");
-	getenv_ul("bootdelay", &bootdelay_sec, 0);
+	getenv_l("bootdelay", &bootdelay_sec, 0);
 
-	if(bootdelay_sec>0 && bootcmd) {
+	if (bootdelay_sec == (long) -1) { 
+		printf("Bootloader locked via environment, running bootcmd now...");
+		run_command(&ms, bootcmd, 0, NULL);		
+	}
+
+	if(bootdelay_sec > 0 && bootcmd) {
 		printf("Hit any key (in %lu sec) to skip autoload...",
 			bootdelay_sec);
 		ulong base = get_timer(0);
@@ -380,7 +385,7 @@ void uemd_init(struct uemd_otp *otp)
 		else {
 			printf("\nRunning autoload command '%s'\n",
 				bootcmd);
-			run_command(&ms,bootcmd,0,NULL);
+			run_command(&ms, bootcmd, 0, NULL);
 		}
 	}
 

@@ -410,7 +410,7 @@ int mtdparts_add(struct mtd_info *master, struct mtd_part *parts)
 	int ret;
 
 	cur_offset = 0;
-	for(i=0, parts; !parts->last; parts++,i++) {
+	for(i=0; !parts->last; parts++, i++) {
 		ret = add_one_partition(master, parts, i, cur_offset);
 		if(ret != 0) {
 			printf("MTD failed to create partition: mtd %s partno %d\n",

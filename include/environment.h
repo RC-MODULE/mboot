@@ -63,6 +63,12 @@ int saveenv(void);
 
 int get_env_id (void);
 
+static inline void getenv_l(const char *name, long *res, long def)
+{
+	char *val = getenv(name);
+	*res = (val ? simple_strtol(val, NULL, 0) : def);
+}
+
 static inline void getenv_ul(const char *name, ulong *res, ulong def)
 {
 	char *val = getenv(name);

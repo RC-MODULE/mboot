@@ -467,6 +467,7 @@ void uemd_init(struct uemd_otp *otp)
 		}
 		
 		set_working_fdt_addr(tag_base);
+		fdt_resize(tag_base);
 		fdt_chosen(tag_base, 1);
 
 	}

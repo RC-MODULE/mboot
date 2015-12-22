@@ -33,7 +33,8 @@
 /*
  * Board-specific Platform code can reimplement show_boot_progress () if needed
  */
-void inline __show_boot_progress (int val) {}
+void __show_boot_progress (int val) {
+}
 void show_boot_progress (int val) __attribute__((weak, alias("__show_boot_progress")));
 
 extern int do_bootd (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);

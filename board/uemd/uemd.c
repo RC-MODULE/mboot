@@ -321,9 +321,10 @@ void uemd_init(struct uemd_otp *otp)
 	if (mtd_mnand.erasesize > bootsz)
 		bootsz = mtd_mnand.erasesize;
 	struct mtd_part basic_parts[] = {
-		MTDPART_INITIALIZER("boot",   0,                  bootsz),
-		MTDPART_INITIALIZER(MTDENV,   MTDPART_OFS_NXTBLK, mtd_mnand.erasesize),
-		MTDPART_INITIALIZER("dtb",    MTDPART_OFS_NXTBLK, mtd_mnand.erasesize),
+		MTDPART_INITIALIZER("boot",   	   0,                  bootsz),
+		MTDPART_INITIALIZER(MTDENV,        MTDPART_OFS_NXTBLK, mtd_mnand.erasesize),
+		MTDPART_INITIALIZER("dtb",         MTDPART_OFS_NXTBLK, mtd_mnand.erasesize),
+		MTDPART_INITIALIZER("firmware",    0,                  mtd_mnand.size),
 		MTDPART_NULL
 	};
 	struct mtd_part *part_env = &basic_parts[1];

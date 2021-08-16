@@ -456,6 +456,10 @@ int mtdparts_add_fromenv(struct mtd_info *master, char* env)
 	cur_offset = 0;
 	struct mtd_part *part;
 	for_all_mtdparts(part) {
+		if (strcmp(part->name, "firmware") == 0) {
+			continue;
+		}
+
 		cur_offset = part->offset + part->mtd.size;		
 		i++;
 	}

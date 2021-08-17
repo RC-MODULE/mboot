@@ -132,6 +132,17 @@ static void extract_dirname(char *dir, const char* path)
 
 
 #define COLS 30 
+static int erase_region(struct mtd_info *mtd, uint64_t offset, uint64_t length, int scrub, int markbad)
+{
+	printf("REGIONERASE: erasing NAND from 0x%llx to 0x%llx...\n", offset, length);
+	printf("REGIONERASE: scrub %d markbad %d\n", scrub, markbad);
+	int ret = mtd_erase_blocks(mtd, offset, length, !scrub, markbad);
+	if (ret>0)
+		return 0;
+	return ret;
+}
+
+
 static int erase_part(struct mtd_info *mtd, int scrub, int markbad)
 {
 	printf("PARTERASE: erasing NAND, please stand by...\n");
@@ -139,9 +150,7 @@ static int erase_part(struct mtd_info *mtd, int scrub, int markbad)
 	int ret = mtd_erase_blocks(mtd, 0, mtd->size, !scrub, markbad);
 	if (ret>0)
 		return 0;
-	return ret;
-			
-	
+	return ret;	
 }
 
 static int do_perase(struct cmd_ctx *cmdctx, int argc, char * const argv[])
@@ -299,6 +308,15 @@ next:
 									\
 	}
 
+
+static inline int str2szll(const char *p, uint64_t *ll)
+{
+	char *endptr;
+	*ll = simple_strtoull(p, &endptr, 0);
+	return (*p != '\0' && *endptr == '\0') ? 0 : -1;
+}
+
+
 static int do_eupgrade(struct cmd_ctx *cmdctx, int argc, char * const argv[])
 {
 	struct mtd_info *mtd = mtd_by_name(argv[1]);
@@ -323,7 +341,13 @@ static int do_eupgrade(struct cmd_ctx *cmdctx, int argc, char * const argv[])
 	printf("readback   @ %x\n", (unsigned int) buffer2);
 
 	if (mtd == NULL) {
-		printf("FWU mtd device is not available (bad part name?)\n");
+		printf("FWU mtd device is not available, assuming it's an offset\n");
+		mtd = mtd_by_name("firmware");
+		str2szll(argv[1], &offset);
+	}
+
+	if (mtd == NULL) {
+		printf("FWU internal error, check nand chip\n");
 		return -1;
 	}
 
@@ -332,11 +356,22 @@ static int do_eupgrade(struct cmd_ctx *cmdctx, int argc, char * const argv[])
 	es.size       = mtd->size;
 	es.writesize  = mtd->writesize; 
 
-	ret = erase_part(mtd, 0, 1);
-	if (ret)
-	{
-		printf("FW: Partition erase failed, aborting...\n");
-		return -1;
+	if (argc > 2) {
+		uint64_t length; 
+		str2szll(argv[2], &length);
+		ret = erase_region(mtd, offset, length, 0, 1);
+		if (ret)
+		{
+			printf("FW: Region erase failed, aborting...\n");
+			return -1;
+		}
+	} else {
+		ret = erase_part(mtd, 0, 1);
+		if (ret)
+		{
+			printf("FW: Partition erase failed, aborting...\n");
+			return -1;
+		}
 	}
 	
 	*g_uemd_magic = (uint32_t) &es;
